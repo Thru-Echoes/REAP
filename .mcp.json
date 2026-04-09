@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "trace": {
+      "command": "uvx",
+      "args": ["--from", "/Users/echoes/Documents/Berkeley/Research/TRACE", "--refresh-package", "trace-mcp", "trace-mcp"]
+    }
+  }
+}

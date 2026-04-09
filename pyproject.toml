@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "reap-embeddings"
+name = "reap-topics"
 version = "0.1.0"
-description = "REAP: Reproducible Embedding via Averaged Projection — stabilizes stochastic dimensionality reduction through distance-matrix consensus and neural projection."
+description = "REAP: Reproducible Embedding via Averaged Projection — consensus-based topic modeling with stable dimensionality reduction and neural projection for out-of-sample data."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
@@ -45,9 +45,9 @@ dependencies = [
 [project.optional-dependencies]
 projection = ["torch>=2.0"]
 labeling = ["openai>=1.0", "anthropic>=0.20"]
-all = ["reap-embeddings[projection,labeling]"]
+all = ["reap-topics[projection,labeling]"]
 dev = [
-    "reap-embeddings[all]",
+    "reap-topics[all]",
     "pytest>=7.0",
     "pytest-cov",
     "pyright",
@@ -55,10 +55,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Thru-Echoes/reap-embeddings"
-Documentation = "https://github.com/Thru-Echoes/reap-embeddings#readme"
-Repository = "https://github.com/Thru-Echoes/reap-embeddings"
-Issues = "https://github.com/Thru-Echoes/reap-embeddings/issues"
+Homepage = "https://github.com/Thru-Echoes/reap-topics"
+Documentation = "https://github.com/Thru-Echoes/reap-topics#readme"
+Repository = "https://github.com/Thru-Echoes/reap-topics"
+Issues = "https://github.com/Thru-Echoes/reap-topics/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/reap"]

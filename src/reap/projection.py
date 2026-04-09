@@ -7,7 +7,7 @@ the need to re-run the expensive multi-seed UMAP procedure for new data.
 Architecture: MLP with BatchNorm + GELU + Dropout.
 Loss: alpha * MSE + (1 - alpha) * (1 - distance_correlation).
 
-Requires the `torch` optional dependency: pip install reap-embeddings[projection]
+Requires the `torch` optional dependency: pip install reap-topics[projection]
 """
 
 from __future__ import annotations
@@ -24,9 +24,12 @@ logger = logging.getLogger(__name__)
 
 
 def _check_torch() -> None:
-    """Raise ImportError with install instructions if torch is missing."""
+    """Raise ImportError with install instructions if torch is missing.
+
+    Side effects: imports torch module.
+    """
     try:
-        import torch  # noqa: F401
+        __import__("torch")
     except ImportError:
         raise ImportError(
             "PyTorch is required for the projection head. "
@@ -282,6 +285,7 @@ def train_projection_head(
         Y_pred = head.forward(X_val_np)
         labels_val = labels[val_idx]
         from sklearn.cluster import KMeans
+        from sklearn.metrics import adjusted_rand_score as _ari
 
         pred_labels = KMeans(n_clusters=len(set(labels)), random_state=42, n_init="auto").fit_predict(Y_pred)
 
@@ -289,7 +293,7 @@ def train_projection_head(
             "mse": float(np.mean((Y_pred - Y_val_np) ** 2)),
             "trustworthiness": compute_trustworthiness(X_val_np, Y_pred, n_neighbors=min(15, len(X_val_np) - 1)),
             "silhouette": compute_silhouette(Y_pred, labels_val),
-            "ari": float(adjusted_rand_score(labels_val, pred_labels)),
+            "ari": float(_ari(labels_val, pred_labels)),
             "distance_correlation": compute_distance_correlation(Y_val_np, Y_pred),
         }
         cv_metrics.append(fold_metrics)
@@ -315,15 +319,16 @@ def train_projection_head(
             optimizer.step()
 
     Y_pred_final = final_head.forward(X)
-    from sklearn.metrics import adjusted_rand_score
+    from sklearn.cluster import KMeans as _KMeans
+    from sklearn.metrics import adjusted_rand_score as _ari_final
 
-    pred_labels_final = KMeans(n_clusters=len(set(labels)), random_state=42, n_init="auto").fit_predict(Y_pred_final)
+    pred_labels_final = _KMeans(n_clusters=len(set(labels)), random_state=42, n_init="auto").fit_predict(Y_pred_final)
 
     final_metrics = {
         "mse": float(np.mean((Y_pred_final - Y) ** 2)),
         "trustworthiness": compute_trustworthiness(X, Y_pred_final, n_neighbors=min(15, len(X) - 1)),
         "silhouette": compute_silhouette(Y_pred_final, labels),
-        "ari": float(adjusted_rand_score(labels, pred_labels_final)),
+        "ari": float(_ari_final(labels, pred_labels_final)),
         "distance_correlation": compute_distance_correlation(Y, Y_pred_final),
     }
 

@@ -9,7 +9,7 @@ Point stratification (core vs peripheral) can be applied before any method
 to focus labels on the most representative points.
 
 Requires the `labeling` optional dependency for LLM features:
-pip install reap-embeddings[labeling]
+pip install reap-topics[labeling]
 """
 
 from __future__ import annotations

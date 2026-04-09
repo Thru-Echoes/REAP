@@ -9,14 +9,14 @@ UMAP embeddings are rotationally arbitrary — different random seeds produce ge
 ## Installation
 
 ```bash
-pip install reap-embeddings
+pip install reap-topics
 ```
 
 With optional dependencies:
 ```bash
-pip install reap-embeddings[projection]   # Neural projection head (PyTorch)
-pip install reap-embeddings[labeling]     # LLM cluster labeling
-pip install reap-embeddings[all]          # Everything
+pip install reap-topics[projection]   # Neural projection head (PyTorch)
+pip install reap-topics[labeling]     # LLM cluster labeling
+pip install reap-topics[all]          # Everything
 ```
 
 ## Quick Start
