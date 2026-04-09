@@ -11,12 +11,15 @@ This is PhD research at UC Berkeley. The package accompanies a methods paper.
 ## Environment
 
 ```bash
-conda activate nlp_sent_trans_notebook
+conda activate reap
 export KMP_DUPLICATE_LIB_OK=TRUE   # macOS OMP workaround
 ```
 
-Python 3.10+. Core deps: numpy, scipy, scikit-learn, umap-learn, pydantic v2.
-Optional: torch (projection head), openai/anthropic (LLM labeling).
+**Conda env:** `reap` (Python 3.12)
+**Full path:** `/opt/homebrew/Caskroom/miniforge/base/envs/reap/bin/python`
+
+Core deps: numpy, scipy, scikit-learn, umap-learn, pydantic v2, torch.
+Optional: openai/anthropic (LLM labeling).
 
 ---
 
