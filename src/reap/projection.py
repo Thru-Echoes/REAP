@@ -1,0 +1,347 @@
+"""Neural projection head for mapping new data into an established REAP consensus space.
+
+The projection head learns a mapping from high-dimensional sentence embeddings
+(e.g., 384-d or 1024-d) to the consensus UMAP coordinate space, eliminating
+the need to re-run the expensive multi-seed UMAP procedure for new data.
+
+Architecture: MLP with BatchNorm + GELU + Dropout.
+Loss: alpha * MSE + (1 - alpha) * (1 - distance_correlation).
+
+Requires the `torch` optional dependency: pip install reap-embeddings[projection]
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+import numpy as np
+
+if TYPE_CHECKING:
+    pass
+
+logger = logging.getLogger(__name__)
+
+
+def _check_torch() -> None:
+    """Raise ImportError with install instructions if torch is missing."""
+    try:
+        import torch  # noqa: F401
+    except ImportError:
+        raise ImportError(
+            "PyTorch is required for the projection head. "
+            "Install with: pip install reap-embeddings[projection]"
+        ) from None
+
+
+class ProjectionHead:
+    """MLP that maps high-d embeddings to consensus UMAP coordinates.
+
+    Default architecture for 384-d → 18-d:
+        Linear(384, 128) → BatchNorm → GELU → Dropout(0.3)
+        Linear(128, 64)  → BatchNorm → GELU → Dropout(0.3)
+        Linear(64, 18)   [no activation]
+
+    ~59K parameters. Trained with combined MSE + distance correlation loss.
+    """
+
+    def __init__(
+        self,
+        input_dim: int = 384,
+        output_dim: int = 18,
+        hidden_layers: list[int] | None = None,
+        dropout: float = 0.3,
+    ) -> None:
+        _check_torch()
+        import torch
+        import torch.nn as nn
+
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        hidden = hidden_layers or [128, 64]
+
+        layers: list[nn.Module] = []
+        prev_dim = input_dim
+        for h_dim in hidden:
+            layers.extend([
+                nn.Linear(prev_dim, h_dim),
+                nn.BatchNorm1d(h_dim),
+                nn.GELU(),
+                nn.Dropout(dropout),
+            ])
+            prev_dim = h_dim
+        layers.append(nn.Linear(prev_dim, output_dim))
+
+        self._model = nn.Sequential(*layers)
+        self._device = torch.device("cpu")
+
+    def to(self, device: str) -> ProjectionHead:
+        """Move model to device."""
+        import torch
+
+        self._device = torch.device(device)
+        self._model = self._model.to(self._device)
+        return self
+
+    def parameters(self):  # type: ignore[no-untyped-def]
+        """Return model parameters for optimizer."""
+        return self._model.parameters()
+
+    def train_mode(self) -> None:
+        """Set to training mode (enables dropout + batchnorm tracking)."""
+        self._model.train()
+
+    def eval_mode(self) -> None:
+        """Set to evaluation mode (disables dropout, uses running batchnorm stats)."""
+        self._model.eval()
+
+    def forward(self, X: np.ndarray) -> np.ndarray:
+        """Project embeddings to consensus space.
+
+        Parameters
+        ----------
+        X : (n_samples, input_dim) embeddings.
+
+        Returns
+        -------
+        (n_samples, output_dim) consensus coordinates.
+        """
+        import torch
+
+        self._model.eval()
+        with torch.no_grad():
+            tensor = torch.from_numpy(X.astype(np.float32)).to(self._device)
+            out = self._model(tensor)
+            return out.cpu().numpy()
+
+    def save(self, path: str) -> None:
+        """Save model weights to disk."""
+        import torch
+
+        torch.save(self._model.state_dict(), path)
+        logger.info("Projection head saved to %s", path)
+
+    def load(self, path: str) -> None:
+        """Load model weights from disk."""
+        import torch
+
+        state = torch.load(path, map_location=self._device, weights_only=True)
+        self._model.load_state_dict(state)
+        self._model.eval()
+        logger.info("Projection head loaded from %s", path)
+
+
+def compute_projection_loss(
+    Y_pred: object,
+    Y_true: object,
+    alpha: float = 0.7,
+) -> tuple[object, dict[str, float]]:
+    """Combined MSE + distance correlation loss.
+
+    Loss = alpha * MSE(Y_pred, Y_true) + (1 - alpha) * (1 - dist_corr(Y_pred, Y_true))
+
+    Parameters
+    ----------
+    Y_pred : (batch, d) predicted tensor.
+    Y_true : (batch, d) target tensor.
+    alpha : Weight for MSE term. Distance correlation gets (1 - alpha).
+
+    Returns
+    -------
+    (loss_tensor, metrics_dict) where metrics_dict has 'mse', 'dist_corr_loss', 'total'.
+    """
+    import torch
+
+    Y_pred_t = Y_pred if isinstance(Y_pred, torch.Tensor) else torch.tensor(Y_pred)
+    Y_true_t = Y_true if isinstance(Y_true, torch.Tensor) else torch.tensor(Y_true)
+
+    mse = torch.nn.functional.mse_loss(Y_pred_t, Y_true_t)
+
+    # Pairwise distance correlation
+    d_pred = torch.cdist(Y_pred_t, Y_pred_t).flatten()
+    d_true = torch.cdist(Y_true_t, Y_true_t).flatten()
+
+    d_pred_centered = d_pred - d_pred.mean()
+    d_true_centered = d_true - d_true.mean()
+
+    denom = d_pred_centered.norm() * d_true_centered.norm()
+    if denom < 1e-12:
+        dist_corr = torch.tensor(0.0, device=Y_pred_t.device)
+    else:
+        dist_corr = (d_pred_centered * d_true_centered).sum() / denom
+
+    dist_corr_loss = 1.0 - dist_corr
+    total = alpha * mse + (1.0 - alpha) * dist_corr_loss
+
+    return total, {
+        "mse": float(mse.item()),
+        "dist_corr_loss": float(dist_corr_loss.item()),
+        "total": float(total.item()),
+    }
+
+
+def train_projection_head(
+    X: np.ndarray,
+    Y: np.ndarray,
+    labels: np.ndarray,
+    hidden_layers: list[int] | None = None,
+    dropout: float = 0.3,
+    alpha: float = 0.7,
+    n_folds: int = 5,
+    batch_size: int = 64,
+    max_epochs: int = 500,
+    patience: int = 50,
+    lr: float = 1e-3,
+    weight_decay: float = 1e-4,
+    device: str = "cpu",
+) -> dict:
+    """Train projection head with stratified cross-validation.
+
+    Parameters
+    ----------
+    X : (n_samples, input_dim) high-d embeddings.
+    Y : (n_samples, output_dim) consensus UMAP targets.
+    labels : (n_samples,) cluster labels for stratified splitting.
+    hidden_layers : Hidden layer sizes (default: [128, 64]).
+    dropout : Dropout probability.
+    alpha : MSE weight in combined loss.
+    n_folds : Number of CV folds.
+    batch_size : Training batch size.
+    max_epochs : Maximum training epochs per fold.
+    patience : Early stopping patience.
+    lr : Learning rate.
+    weight_decay : L2 regularization.
+    device : Torch device ("cpu", "cuda", "mps").
+
+    Returns
+    -------
+    Dictionary with 'model' (ProjectionHead), 'cv_metrics', 'final_metrics'.
+
+    Side effects: trains neural network, logs progress.
+    """
+    _check_torch()
+    import torch
+    from sklearn.model_selection import StratifiedKFold
+
+    from reap.evaluation import compute_distance_correlation, compute_silhouette, compute_trustworthiness
+
+    input_dim = X.shape[1]
+    output_dim = Y.shape[1]
+    hidden = hidden_layers or [128, 64]
+
+    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
+    cv_metrics: list[dict[str, float]] = []
+
+    for fold, (train_idx, val_idx) in enumerate(skf.split(X, labels)):
+        logger.info("Fold %d/%d", fold + 1, n_folds)
+
+        head = ProjectionHead(input_dim, output_dim, hidden, dropout).to(device)
+        head.train_mode()
+        optimizer = torch.optim.Adam(head.parameters(), lr=lr, weight_decay=weight_decay)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, factor=0.5, patience=15, min_lr=1e-6
+        )
+
+        X_train = torch.from_numpy(X[train_idx].astype(np.float32)).to(device)
+        Y_train = torch.from_numpy(Y[train_idx].astype(np.float32)).to(device)
+        X_val_np, Y_val_np = X[val_idx], Y[val_idx]
+
+        best_val_loss = float("inf")
+        epochs_no_improve = 0
+
+        for epoch in range(max_epochs):
+            head.train_mode()
+            perm = torch.randperm(len(X_train))
+            epoch_loss = 0.0
+            n_batches = 0
+
+            for start in range(0, len(X_train), batch_size):
+                idx = perm[start : start + batch_size]
+                loss, _ = compute_projection_loss(
+                    head._model(X_train[idx]), Y_train[idx], alpha
+                )
+                optimizer.zero_grad()
+                loss.backward()  # type: ignore[union-attr]
+                optimizer.step()
+                epoch_loss += loss.item()  # type: ignore[union-attr]
+                n_batches += 1
+
+            avg_loss = epoch_loss / max(n_batches, 1)
+            scheduler.step(avg_loss)
+
+            if avg_loss < best_val_loss - 1e-6:
+                best_val_loss = avg_loss
+                epochs_no_improve = 0
+            else:
+                epochs_no_improve += 1
+                if epochs_no_improve >= patience:
+                    logger.info("Early stopping at epoch %d", epoch + 1)
+                    break
+
+        # Evaluate fold
+        Y_pred = head.forward(X_val_np)
+        labels_val = labels[val_idx]
+        from sklearn.cluster import KMeans
+
+        pred_labels = KMeans(n_clusters=len(set(labels)), random_state=42, n_init="auto").fit_predict(Y_pred)
+
+        fold_metrics = {
+            "mse": float(np.mean((Y_pred - Y_val_np) ** 2)),
+            "trustworthiness": compute_trustworthiness(X_val_np, Y_pred, n_neighbors=min(15, len(X_val_np) - 1)),
+            "silhouette": compute_silhouette(Y_pred, labels_val),
+            "ari": float(adjusted_rand_score(labels_val, pred_labels)),
+            "distance_correlation": compute_distance_correlation(Y_val_np, Y_pred),
+        }
+        cv_metrics.append(fold_metrics)
+        logger.info("Fold %d metrics: %s", fold + 1, fold_metrics)
+
+    # Train final model on all data
+    logger.info("Training final model on all %d samples", len(X))
+    final_head = ProjectionHead(input_dim, output_dim, hidden, dropout).to(device)
+    final_head.train_mode()
+    optimizer = torch.optim.Adam(final_head.parameters(), lr=lr, weight_decay=weight_decay)
+
+    X_all = torch.from_numpy(X.astype(np.float32)).to(device)
+    Y_all = torch.from_numpy(Y.astype(np.float32)).to(device)
+
+    for epoch in range(max_epochs):
+        final_head.train_mode()
+        perm = torch.randperm(len(X_all))
+        for start in range(0, len(X_all), batch_size):
+            idx = perm[start : start + batch_size]
+            loss, _ = compute_projection_loss(final_head._model(X_all[idx]), Y_all[idx], alpha)
+            optimizer.zero_grad()
+            loss.backward()  # type: ignore[union-attr]
+            optimizer.step()
+
+    Y_pred_final = final_head.forward(X)
+    from sklearn.metrics import adjusted_rand_score
+
+    pred_labels_final = KMeans(n_clusters=len(set(labels)), random_state=42, n_init="auto").fit_predict(Y_pred_final)
+
+    final_metrics = {
+        "mse": float(np.mean((Y_pred_final - Y) ** 2)),
+        "trustworthiness": compute_trustworthiness(X, Y_pred_final, n_neighbors=min(15, len(X) - 1)),
+        "silhouette": compute_silhouette(Y_pred_final, labels),
+        "ari": float(adjusted_rand_score(labels, pred_labels_final)),
+        "distance_correlation": compute_distance_correlation(Y, Y_pred_final),
+    }
+
+    return {
+        "model": final_head,
+        "cv_metrics": cv_metrics,
+        "final_metrics": final_metrics,
+        "config": {
+            "input_dim": input_dim,
+            "output_dim": output_dim,
+            "hidden_layers": hidden,
+            "dropout": dropout,
+            "alpha": alpha,
+            "n_folds": n_folds,
+            "batch_size": batch_size,
+            "max_epochs": max_epochs,
+            "patience": patience,
+            "lr": lr,
+            "weight_decay": weight_decay,
+        },
+    }

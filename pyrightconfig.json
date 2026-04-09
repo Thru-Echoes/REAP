@@ -1,0 +1,9 @@
+{
+    "pythonVersion": "3.10",
+    "typeCheckingMode": "basic",
+    "include": ["src/reap", "tests"],
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "reportUnusedImport": true,
+    "reportUnusedVariable": true
+}

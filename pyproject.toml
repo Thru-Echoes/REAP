@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "reap-embeddings"
+version = "0.1.0"
+description = "REAP: Reproducible Embedding via Averaged Projection — stabilizes stochastic dimensionality reduction through distance-matrix consensus and neural projection."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "Oliver Muellerklein", email = "omuellerklein@berkeley.edu" },
+]
+keywords = [
+    "umap",
+    "dimensionality-reduction",
+    "consensus",
+    "topic-modeling",
+    "embeddings",
+    "reproducibility",
+    "nlp",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "scikit-learn>=1.2",
+    "umap-learn>=0.5",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+projection = ["torch>=2.0"]
+labeling = ["openai>=1.0", "anthropic>=0.20"]
+all = ["reap-embeddings[projection,labeling]"]
+dev = [
+    "reap-embeddings[all]",
+    "pytest>=7.0",
+    "pytest-cov",
+    "pyright",
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/Thru-Echoes/reap-embeddings"
+Documentation = "https://github.com/Thru-Echoes/reap-embeddings#readme"
+Repository = "https://github.com/Thru-Echoes/reap-embeddings"
+Issues = "https://github.com/Thru-Echoes/reap-embeddings/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reap"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+include = ["src/reap", "tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
