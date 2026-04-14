@@ -18,7 +18,6 @@ from reap.consensus import (
     run_consensus_pipeline,
 )
 from reap.evaluation import (
-    compute_pairwise_ari,
     compute_seed_stability,
     compute_silhouette,
     compute_trustworthiness,

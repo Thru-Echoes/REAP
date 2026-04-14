@@ -8,12 +8,17 @@ structure-focused, and Pareto-optimal strategies.
 from __future__ import annotations
 
 import logging
+
 import numpy as np
 from sklearn.cluster import KMeans
 
 from reap._types import GridSearchConfig, GridSearchResult
 from reap.clustering import find_best_k
-from reap.consensus import get_consensus_distance_matrix, get_consensus_embedding, get_multi_seed_embeddings
+from reap.consensus import (
+    get_consensus_distance_matrix,
+    get_consensus_embedding,
+    get_multi_seed_embeddings,
+)
 from reap.evaluation import compute_pairwise_ari, compute_trustworthiness
 
 logger = logging.getLogger(__name__)
@@ -63,7 +68,10 @@ def evaluate_config(
     )
 
     # Trustworthiness
-    tw = compute_trustworthiness(X, consensus_emb, n_neighbors=min(n_neighbors, X.shape[0] - 1), metric=metric)
+    n_nn = min(n_neighbors, X.shape[0] - 1)
+    tw = compute_trustworthiness(
+        X, consensus_emb, n_neighbors=n_nn, metric=metric
+    )
 
     # Best K via silhouette
     sil_result = find_best_k(consensus_emb, k_range, metric=silhouette_metric)

@@ -70,6 +70,8 @@ def get_multi_seed_embeddings(
             random_state=seed,
         )
         result = reducer.fit_transform(X)
+        # float32 is sufficient for individual UMAP embeddings (saves memory);
+        # distance matrix accumulation uses float64 for numerical precision.
         embeddings.append(np.asarray(result, dtype=np.float32))
 
     return embeddings

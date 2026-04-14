@@ -11,7 +11,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ---------------------------------------------------------------------------
 # Configuration models
 # ---------------------------------------------------------------------------
@@ -25,7 +24,8 @@ class UmapParams(BaseModel):
     n_components: int = Field(..., ge=2, description="Target dimensionality")
     n_neighbors: int = Field(..., ge=2, description="Size of local neighborhood")
     min_dist: float = Field(
-        ..., ge=0.0, le=1.0, description="Minimum distance between points (< 0.005 risks instability)"
+        ..., ge=0.0, le=1.0,
+        description="Minimum distance between points (< 0.005 risks instability)",
     )
     metric: str = Field(default="cosine", description="Distance metric for high-d input space")
     random_state: int | None = Field(default=42, description="Random seed for reproducibility")
@@ -93,7 +93,9 @@ class GridSearchConfig(BaseModel):
     k_range: list[int] = Field(..., min_length=1, description="Range of K values to test")
     n_seeds: int = Field(default=30, ge=2)
     metric: str = Field(default="cosine")
-    seeds: list[int] | None = Field(default=None, description="Explicit seed list (generated if None)")
+    seeds: list[int] | None = Field(
+        default=None, description="Explicit seed list (generated if None)"
+    )
 
 
 # ---------------------------------------------------------------------------

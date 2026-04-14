@@ -154,4 +154,5 @@ def compute_distance_correlation(
     if d_true.std() < 1e-12 or d_pred.std() < 1e-12:
         return 0.0
 
-    return float(np.corrcoef(d_true, d_pred)[0, 1])
+    corr = float(np.corrcoef(d_true, d_pred)[0, 1])
+    return corr if np.isfinite(corr) else 0.0

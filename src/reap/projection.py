@@ -226,7 +226,11 @@ def train_projection_head(
     import torch
     from sklearn.model_selection import StratifiedKFold
 
-    from reap.evaluation import compute_distance_correlation, compute_silhouette, compute_trustworthiness
+    from reap.evaluation import (
+        compute_distance_correlation,
+        compute_silhouette,
+        compute_trustworthiness,
+    )
 
     input_dim = X.shape[1]
     output_dim = Y.shape[1]
@@ -248,15 +252,16 @@ def train_projection_head(
         X_train = torch.from_numpy(X[train_idx].astype(np.float32)).to(device)
         Y_train = torch.from_numpy(Y[train_idx].astype(np.float32)).to(device)
         X_val_np, Y_val_np = X[val_idx], Y[val_idx]
+        X_val_t = torch.from_numpy(X_val_np.astype(np.float32)).to(device)
+        Y_val_t = torch.from_numpy(Y_val_np.astype(np.float32)).to(device)
 
         best_val_loss = float("inf")
+        best_state: dict[str, object] | None = None
         epochs_no_improve = 0
 
         for epoch in range(max_epochs):
             head.train_mode()
             perm = torch.randperm(len(X_train))
-            epoch_loss = 0.0
-            n_batches = 0
 
             for start in range(0, len(X_train), batch_size):
                 idx = perm[start : start + batch_size]
@@ -265,15 +270,21 @@ def train_projection_head(
                 )
                 optimizer.zero_grad()
                 loss.backward()  # type: ignore[union-attr]
+                torch.nn.utils.clip_grad_norm_(head.parameters(), max_norm=1.0)
                 optimizer.step()
-                epoch_loss += loss.item()  # type: ignore[union-attr]
-                n_batches += 1
 
-            avg_loss = epoch_loss / max(n_batches, 1)
-            scheduler.step(avg_loss)
+            # Early stopping on VALIDATION loss, not training loss
+            head.eval_mode()
+            with torch.no_grad():
+                val_loss, _ = compute_projection_loss(
+                    head._model(X_val_t), Y_val_t, alpha
+                )
+            val_loss_value = float(val_loss.item())  # type: ignore[union-attr]
+            scheduler.step(val_loss_value)
 
-            if avg_loss < best_val_loss - 1e-6:
-                best_val_loss = avg_loss
+            if val_loss_value < best_val_loss - 1e-6:
+                best_val_loss = val_loss_value
+                best_state = {k: v.clone() for k, v in head._model.state_dict().items()}
                 epochs_no_improve = 0
             else:
                 epochs_no_improve += 1
@@ -281,17 +292,26 @@ def train_projection_head(
                     logger.info("Early stopping at epoch %d", epoch + 1)
                     break
 
+        # Restore best model weights from validation
+        if best_state is not None:
+            head._model.load_state_dict(best_state)
+
         # Evaluate fold
         Y_pred = head.forward(X_val_np)
         labels_val = labels[val_idx]
         from sklearn.cluster import KMeans
         from sklearn.metrics import adjusted_rand_score as _ari
 
-        pred_labels = KMeans(n_clusters=len(set(labels)), random_state=42, n_init="auto").fit_predict(Y_pred)
+        n_clusters = len(set(labels))
+        km = KMeans(n_clusters=n_clusters, random_state=42, n_init="auto")
+        pred_labels = km.fit_predict(Y_pred)
 
+        n_nn = min(15, len(X_val_np) - 1)
         fold_metrics = {
             "mse": float(np.mean((Y_pred - Y_val_np) ** 2)),
-            "trustworthiness": compute_trustworthiness(X_val_np, Y_pred, n_neighbors=min(15, len(X_val_np) - 1)),
+            "trustworthiness": compute_trustworthiness(
+                X_val_np, Y_pred, n_neighbors=n_nn
+            ),
             "silhouette": compute_silhouette(Y_pred, labels_val),
             "ari": float(_ari(labels_val, pred_labels)),
             "distance_correlation": compute_distance_correlation(Y_val_np, Y_pred),
@@ -303,30 +323,68 @@ def train_projection_head(
     logger.info("Training final model on all %d samples", len(X))
     final_head = ProjectionHead(input_dim, output_dim, hidden, dropout).to(device)
     final_head.train_mode()
-    optimizer = torch.optim.Adam(final_head.parameters(), lr=lr, weight_decay=weight_decay)
+    final_optimizer = torch.optim.Adam(final_head.parameters(), lr=lr, weight_decay=weight_decay)
+    final_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        final_optimizer, factor=0.5, patience=15, min_lr=1e-6
+    )
 
     X_all = torch.from_numpy(X.astype(np.float32)).to(device)
     Y_all = torch.from_numpy(Y.astype(np.float32)).to(device)
 
+    best_final_loss = float("inf")
+    best_final_state: dict[str, object] | None = None
+    final_no_improve = 0
+
     for epoch in range(max_epochs):
         final_head.train_mode()
         perm = torch.randperm(len(X_all))
+        epoch_loss = 0.0
+        n_batches = 0
         for start in range(0, len(X_all), batch_size):
             idx = perm[start : start + batch_size]
             loss, _ = compute_projection_loss(final_head._model(X_all[idx]), Y_all[idx], alpha)
-            optimizer.zero_grad()
+            final_optimizer.zero_grad()
             loss.backward()  # type: ignore[union-attr]
-            optimizer.step()
+            torch.nn.utils.clip_grad_norm_(final_head.parameters(), max_norm=1.0)
+            final_optimizer.step()
+            epoch_loss += loss.item()  # type: ignore[union-attr]
+            n_batches += 1
+
+        avg_loss = epoch_loss / max(n_batches, 1)
+        final_scheduler.step(avg_loss)
+
+        if avg_loss < best_final_loss - 1e-6:
+            best_final_loss = avg_loss
+            best_final_state = {
+                k: v.clone() for k, v in final_head._model.state_dict().items()
+            }
+            final_no_improve = 0
+        else:
+            final_no_improve += 1
+            if final_no_improve >= patience:
+                logger.info("Final model early stopping at epoch %d", epoch + 1)
+                break
+
+    # Restore best weights
+    if best_final_state is not None:
+        final_head._model.load_state_dict(best_final_state)
 
     Y_pred_final = final_head.forward(X)
     from sklearn.cluster import KMeans as _KMeans
     from sklearn.metrics import adjusted_rand_score as _ari_final
 
-    pred_labels_final = _KMeans(n_clusters=len(set(labels)), random_state=42, n_init="auto").fit_predict(Y_pred_final)
+    n_clusters = len(set(labels))
+    km_final = _KMeans(
+        n_clusters=n_clusters, random_state=42, n_init="auto"
+    )
+    pred_labels_final = km_final.fit_predict(Y_pred_final)
 
+    n_nn = min(15, len(X) - 1)
     final_metrics = {
         "mse": float(np.mean((Y_pred_final - Y) ** 2)),
-        "trustworthiness": compute_trustworthiness(X, Y_pred_final, n_neighbors=min(15, len(X) - 1)),
+        "trustworthiness": compute_trustworthiness(
+            X, Y_pred_final, n_neighbors=n_nn
+        ),
         "silhouette": compute_silhouette(Y_pred_final, labels),
         "ari": float(_ari_final(labels, pred_labels_final)),
         "distance_correlation": compute_distance_correlation(Y, Y_pred_final),

@@ -8,6 +8,29 @@ This is PhD research at UC Berkeley. The package accompanies a methods paper.
 
 ---
 
+## Publication-Quality Standard (READ FIRST)
+
+All work in this repo targets a **top-tier scientific methods paper**
+and a **public PyPI package**. Every number, claim, figure, and
+citation must survive adversarial peer review; every line of code must
+read cleanly to a stranger adopting the package tomorrow. The binding
+rules live in:
+
+- [`.claude/rules/publication-standards.md`](.claude/rules/publication-standards.md)
+  — scientific rigor, reproducibility bundles, pre-registered
+  protocols, verified citations, self-review checklist.
+- [`.claude/rules/open-source-package.md`](.claude/rules/open-source-package.md)
+  — public API stability, semver + CHANGELOG, CI matrix, license,
+  datasets-as-API contract, bring-your-own-embedding contract,
+  adoptability checklist.
+
+These override anything in sibling rule files when they conflict. The
+pre-registered evaluation protocol lives at
+[`manuscript/evaluation_protocol.md`](manuscript/evaluation_protocol.md)
+— every later script, table, figure, and paragraph points back to it.
+
+---
+
 ## Environment
 
 ```bash

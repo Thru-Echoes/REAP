@@ -23,7 +23,9 @@ class TestValidateEmbeddings:
 
     def test_wrong_dim_detected(self) -> None:
         X = np.ones((10, 100))
-        report = validate_embeddings(X, expected_dim=384, check_l2_norm=False, check_duplicates=False)
+        report = validate_embeddings(
+            X, expected_dim=384, check_l2_norm=False, check_duplicates=False
+        )
         assert not report.passed
 
     def test_duplicate_detection(self) -> None:
