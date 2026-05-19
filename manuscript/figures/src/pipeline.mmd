@@ -1,0 +1,35 @@
+flowchart TD
+    A["Raw embeddings<br/><i>N x d_in float matrix</i>"] --> B["Multi-seed UMAP<br/>S = 30 seeds"]
+    B --> C1["E<sup>(1)</sup>"]
+    B --> C2["E<sup>(2)</sup>"]
+    B --> C3["...<br/>E<sup>(S)</sup>"]
+    C1 --> D1["D<sup>(1)</sup><br/>pairwise distances"]
+    C2 --> D2["D<sup>(2)</sup><br/>pairwise distances"]
+    C3 --> D3["D<sup>(S)</sup><br/>pairwise distances"]
+    D1 --> E["Average distance matrices<br/>D&#772; = (1/S) &Sigma; D<sup>(s)</sup>"]
+    D2 --> E
+    D3 --> E
+    E --> F["Final UMAP<br/>metric = precomputed"]
+    F --> G["Consensus embedding<br/><b>Y &isin; R<sup>N x d</sup></b>"]
+    G --> H["KMeans clustering<br/>K from composite-score sweep"]
+    H --> I["Cluster labels<br/>L"]
+
+    G -. "train" .-> P["Projection head<br/><i>MLP f: R<sup>d_in</sup> -&gt; R<sup>d</sup></i>"]
+    I -. "train" .-> P
+    NX["New embeddings<br/><i>X_new</i>"] --> P
+    P --> NY["Projected coords<br/>Y_new = f(X_new)"]
+    NY --> Q["Conformal filter<br/>Mahalanobis + pooled correction"]
+    G -. "calibration" .-> Q
+    Q --> R["KEEP / REMOVE<br/>at &alpha; = 0.01"]
+
+    classDef raw fill:#f5f5f5,stroke:#333,stroke-width:1px;
+    classDef seed fill:#e8f1fb,stroke:#1f4e79,stroke-width:1px;
+    classDef cons fill:#fff2cc,stroke:#806000,stroke-width:1px;
+    classDef head fill:#e2efda,stroke:#2e6c2e,stroke-width:1px;
+    classDef out  fill:#fbe5e5,stroke:#8b1a1a,stroke-width:1px;
+
+    class A,NX raw;
+    class B,C1,C2,C3,D1,D2,D3 seed;
+    class E,F,G,H,I cons;
+    class P,NY head;
+    class Q,R out;

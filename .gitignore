@@ -49,3 +49,18 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Throwaway tool scratch (not pushed)
+.playwright-mcp/
+
+# Internal process/triage scratch — local only, not for (soon-public) history
+docs/superpowers/
+
+# Transient/internal narrative + rendered status docs (NOT the manuscript).
+# Manuscript prose (manuscript/sections/*.md, evaluation_protocol.md, outline.md,
+# proposals/, supplementary/, key_validated_results.md) and standard package docs
+# (README, CHANGELOG, CONTRIBUTING, CODE_OF_CONDUCT) STAY tracked: git diffs of the
+# prose complement TRACE (git = exact text/revert, TRACE = the why). Precise, not a
+# blanket *.html/*.md, so future figure HTML/Markdown sources are not dropped.
+HANDOFF_NEXT_SESSION.md
+manuscript/manuscript_completion_checklist.html

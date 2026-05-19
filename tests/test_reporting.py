@@ -143,7 +143,7 @@ def benchmark_result_2(method_reap: MethodResult) -> BenchmarkResult:
     )
     return BenchmarkResult(
         dataset_name="AI-Art Discourse",
-        n_samples=1742,
+        n_samples=1736,
         n_features=1024,
         n_components=5,
         n_neighbors=53,

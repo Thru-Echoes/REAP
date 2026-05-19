@@ -58,12 +58,20 @@ class DatasetMetadata(BaseModel):
     license: str = Field(
         ...,
         min_length=1,
-        description="SPDX license identifier (e.g., 'CC-BY-4.0').",
+        description=(
+            "License identifier for the corpus. SPDX identifier where the "
+            "source provides one (e.g., 'CC-BY-4.0'); 'public-domain' for "
+            "publicly-available corpora without a formal license; "
+            "'NOASSERTION' when the licensing status is unknown."
+        ),
     )
-    citation: str = Field(
-        ...,
-        min_length=1,
-        description="BibTeX entry attributing the underlying corpus.",
+    citation: str | None = Field(
+        default=None,
+        description=(
+            "BibTeX entry attributing the underlying corpus. May be None "
+            "for pre-publication corpora; in that case `notes` should flag "
+            "the citation as pending. Do not invent placeholders."
+        ),
     )
     source_url: str | None = Field(
         default=None,

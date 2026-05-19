@@ -1,0 +1,39 @@
+{
+  "method": "bertopic",
+  "description": "BERTopic default pipeline (single-seed UMAP + HDBSCAN + c-TF-IDF)",
+  "n_seeds": 30,
+  "runtime_seconds": 131.47047125012614,
+  "peak_memory_mb": 35.80647945404053,
+  "consensus": {
+    "k": 16,
+    "silhouette_cell_D": 0.4003930589067871,
+    "trustworthiness": 0.9372865670758446,
+    "continuity": 0.9426752411979236,
+    "davies_bouldin": 0.8544505002275748,
+    "calinski_harabasz": 2102.724236746887
+  },
+  "headline_summary": {
+    "silhouette": 0.4003930589067871,
+    "silhouette_std": 0.0,
+    "trustworthiness": 0.9372865670758446,
+    "trustworthiness_std": 0.0,
+    "best_k": 16,
+    "best_k_std": 0.0
+  },
+  "s2s_summary": {
+    "ari_mean": 0.7601401536089051,
+    "ari_std": 0.07986201755677853,
+    "ami_mean": 0.8572450083941245,
+    "ami_std": 0.03413776149794809,
+    "nmi_mean": 0.8622254271637321,
+    "nmi_std": 0.032731201830589945
+  },
+  "s2c_summary": {
+    "ari_mean": 0.808318036506368,
+    "ari_std": 0.08439674368370863,
+    "ami_mean": 0.8804414422125475,
+    "ami_std": 0.037402253784576386,
+    "nmi_mean": 0.8841698085917336,
+    "nmi_std": 0.035794161268037555
+  }
+}

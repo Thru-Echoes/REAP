@@ -1,0 +1,39 @@
+{
+  "method": "naive_average",
+  "description": "Average coordinates across seeds without alignment (negative control)",
+  "n_seeds": 30,
+  "runtime_seconds": 22.14755520806648,
+  "peak_memory_mb": 2.0532073974609375,
+  "consensus": {
+    "k": 6,
+    "silhouette_cell_D": 0.4252204895019531,
+    "trustworthiness": 0.8993264095079407,
+    "continuity": 0.8866867950372291,
+    "davies_bouldin": 0.8161540586535031,
+    "calinski_harabasz": 1123.8921958297085
+  },
+  "headline_summary": {
+    "silhouette": 0.4252204895019531,
+    "silhouette_std": 0.0,
+    "trustworthiness": 0.8993264095079407,
+    "trustworthiness_std": 0.0,
+    "best_k": 6,
+    "best_k_std": 0.0
+  },
+  "s2s_summary": {
+    "ari_mean": 0.662609047563455,
+    "ari_std": 0.14581730027515336,
+    "ami_mean": 0.8024364250782695,
+    "ami_std": 0.08839905385457186,
+    "nmi_mean": 0.8245981792536832,
+    "nmi_std": 0.09000262310651205
+  },
+  "s2c_summary": {
+    "ari_mean": 0.2530841924995989,
+    "ari_std": 0.05055455890048615,
+    "ami_mean": 0.5777907582340408,
+    "ami_std": 0.01618015430339027,
+    "nmi_mean": 0.590947509174396,
+    "nmi_std": 0.01428187501026789
+  }
+}

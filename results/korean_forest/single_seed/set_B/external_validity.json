@@ -1,0 +1,11 @@
+{
+  "ari": 0.13038849604060718,
+  "ami": 0.28730054295534896,
+  "nmi": 0.3553372305866311,
+  "homogeneity": null,
+  "completeness": null,
+  "v_measure": null,
+  "fowlkes_mallows": null,
+  "mean_purity": null,
+  "purity_per_cluster": null
+}

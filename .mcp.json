@@ -2,7 +2,18 @@
   "mcpServers": {
     "trace": {
       "command": "uvx",
-      "args": ["--from", "/Users/echoes/Documents/Berkeley/Research/TRACE", "--refresh-package", "trace-mcp", "trace-mcp"]
+      "args": [
+        "--from",
+        "/Users/echoes/Documents/Berkeley/Research/TRACE",
+        "--with",
+        "openai",
+        "--with",
+        "numpy",
+        "--with",
+        "model2vec",
+        "--refresh",
+        "trace-mcp"
+      ]
     }
   }
 }

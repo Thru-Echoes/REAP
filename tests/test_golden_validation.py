@@ -63,7 +63,9 @@ from reap.consensus import (
 from reap.datasets import DatasetSnapshot, load_golden_blobs, load_golden_text
 from reap.evaluation import compute_silhouette, compute_trustworthiness
 
-SEED_MANIFEST_PATH = Path(__file__).resolve().parents[1] / "manuscript" / "seeds" / "seed_manifest.json"
+SEED_MANIFEST_PATH = (
+    Path(__file__).resolve().parents[1] / "manuscript" / "seeds" / "seed_manifest.json"
+)
 
 GOLDEN_K = 8
 GOLDEN_N_COMPONENTS = 8
@@ -521,14 +523,27 @@ class TestDatasetSnapshotContract:
         )
 
     def test_named_dataset_stubs_raise_not_implemented(self) -> None:
-        """Paper-dataset stubs must fail loudly with migration guidance."""
+        """Paper-dataset loaders without snapshots raise clear migration errors.
+
+        ``ai_art`` and ``korean_forest`` now load from the REAP cache
+        (``src/reap/datasets/ai_art.py``, ``korean_forest.py``); if the
+        cache is populated they succeed, if it is empty they raise
+        ``FileNotFoundError`` pointing at ``scripts/build_datasets.py``.
+        ``corp_sustainability`` and ``us_presidential`` remain stubs
+        until their source data lands.
+        """
         import reap.datasets as ds
 
-        for fn in (
-            ds.load_ai_art,
-            ds.load_korean_forest,
-            ds.load_corp_sustainability,
-            ds.load_us_presidential,
-        ):
+        for fn in (ds.load_corp_sustainability, ds.load_us_presidential):
             with pytest.raises(NotImplementedError, match="stub"):
                 fn()
+
+        for fn in (ds.load_ai_art, ds.load_korean_forest):
+            try:
+                snap = fn()
+            except FileNotFoundError as exc:
+                assert "build_datasets.py" in str(exc), (
+                    f"cache-miss error should point at the builder: {exc}"
+                )
+            else:
+                assert snap.metadata.n_samples >= 1

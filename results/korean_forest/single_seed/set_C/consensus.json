@@ -1,0 +1,39 @@
+{
+  "method": "single_seed",
+  "description": "Independent single-seed UMAP runs; reports mean and std across seeds",
+  "n_seeds": 30,
+  "runtime_seconds": 48.54537962493487,
+  "peak_memory_mb": 16.068363189697266,
+  "consensus": {
+    "k": null,
+    "silhouette_cell_D": null,
+    "trustworthiness": null,
+    "continuity": null,
+    "davies_bouldin": null,
+    "calinski_harabasz": null
+  },
+  "headline_summary": {
+    "silhouette": 0.4038734505573908,
+    "silhouette_std": 0.006945482895794281,
+    "trustworthiness": 0.9153469638315733,
+    "trustworthiness_std": 0.0009486686808264917,
+    "best_k": 29,
+    "best_k_std": 2.822331581433258
+  },
+  "s2s_summary": {
+    "ari_mean": 0.7073941887693681,
+    "ari_std": 0.03669754567122581,
+    "ami_mean": 0.8264513701814595,
+    "ami_std": 0.01826029284718115,
+    "nmi_mean": 0.8501492188923169,
+    "nmi_std": 0.016570290587758028
+  },
+  "s2c_summary": {
+    "ari_mean": null,
+    "ari_std": null,
+    "ami_mean": null,
+    "ami_std": null,
+    "nmi_mean": null,
+    "nmi_std": null
+  }
+}

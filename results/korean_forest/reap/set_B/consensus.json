@@ -1,0 +1,39 @@
+{
+  "method": "reap",
+  "description": "Average pairwise distance matrices, then project via UMAP (our method)",
+  "n_seeds": 30,
+  "runtime_seconds": 23.681437458028086,
+  "peak_memory_mb": 21.868404388427734,
+  "consensus": {
+    "k": 30,
+    "silhouette_cell_D": 0.6868359871615418,
+    "trustworthiness": 0.8896387333324981,
+    "continuity": 0.8336531322166681,
+    "davies_bouldin": 0.4123851963684176,
+    "calinski_harabasz": 8580.72491371419
+  },
+  "headline_summary": {
+    "silhouette": 0.6868359871615418,
+    "silhouette_std": 0.0,
+    "trustworthiness": 0.8896387333324981,
+    "trustworthiness_std": 0.0,
+    "best_k": 30,
+    "best_k_std": 0.0
+  },
+  "s2s_summary": {
+    "ari_mean": 0.662609047563455,
+    "ari_std": 0.14581730027515336,
+    "ami_mean": 0.8024364250782695,
+    "ami_std": 0.08839905385457186,
+    "nmi_mean": 0.8245981792536832,
+    "nmi_std": 0.09000262310651205
+  },
+  "s2c_summary": {
+    "ari_mean": 0.6419564118727007,
+    "ari_std": 0.10121764253180249,
+    "ami_mean": 0.8002155224982496,
+    "ami_std": 0.061952535892327854,
+    "nmi_mean": 0.8264165880278787,
+    "nmi_std": 0.06352001467863846
+  }
+}
