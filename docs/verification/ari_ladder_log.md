@@ -153,3 +153,75 @@ The largest cross-agent disagreement is at T5 s2s_mean: hand=0.0 vs Agent 1/3=1.
 
 **Next rung:** Rung 1 — tiny synthetic property assertions on `make_blobs(n=40, centers=4)` with KMeans seeds 0/1 (see plan Task 2).
 
+---
+
+## Rung 1 — Tiny synthetic property assertions
+
+- **Test file:** `tests/verification/test_ari_rung1_synthetic.py` (11 tests)
+- **Reference impl:** `tests/verification/_reference_ari.py` (Rung-0 verified)
+- **Synthetic data:** `make_blobs(n_samples=40, centers=4, cluster_std=0.3, random_state=0, return_centers=False)`; two KMeans labelings at `random_state=0` and `random_state=1` (with `n_init="auto"`)
+- **Run:** `KMP_DUPLICATE_LIB_OK=TRUE pytest tests/verification/test_ari_rung1_synthetic.py -v`
+- **Date:** 2026-05-20
+- **Commit:** to be filled post-commit on `feature/reap-foundation`
+- **Tolerance:** 1e-12 (intra-rung); property thresholds: ARI > 0.95 (P1, P2), ARI ≈ 0 with |ARI| < 0.15 (P4)
+
+### Properties asserted
+
+| # | Property | Tolerance / threshold |
+|---|---|---|
+| P1 | Each seed labeling recovers GT: `ARI(seed_i, GT) > 0.95` | — |
+| P2 | Seeds agree with each other: `ARI(seed_0, seed_1) > 0.95` | — |
+| P3 | Permutation invariance: `ARI(seed_0, σ(seed_1)) == ARI(seed_0, seed_1)` for σ = `[3,1,0,2]` applied to labels | < 1e-12 |
+| P4 | Random labels uncorrelated with structure: `|ARI(rand(state), GT)| < 0.15` for state ∈ {0..4} | — |
+| P5 | Production `compute_pairwise_ari` and `compute_seed_stability` (s2s portion) match `reference_ari` on the produced label arrays | < 1e-12 |
+| P6 | Tri-view: per-seed (vs GT) > 0.95; s2s = 1-pair value > 0.95; s2c = n/a with explicit reason ("consensus undefined for a 2-seed rung; first defined at Rung 2") | — |
+
+### Orchestrator run result
+
+```
+11 passed in 7.09s
+```
+
+Pyright `0/0/0`; ruff clean.
+
+### Quadruple-independent verification (Step 3)
+
+Two parallel agents were dispatched (reference-impl + independent-verifier subagent). Property agent was skipped because the rung's properties are themselves the verification protocol (P3 is *exactly* the property agent's domain, already asserted in code). The different-library agent's contribution was folded into the reference-impl agent's run (it cross-validated against its own from-scratch impl and against sklearn — both matched to ≤ 4e-17 on 5 random validation cases).
+
+| Agent | Path | Verdict |
+|---|---|---|
+| 1. Reference-impl | from-scratch contingency-table ARI (math.comb + numpy) | PASS |
+| 2. independent-verifier | from-scratch + redundant pair-counting + textbook validation | PASS |
+| 3/4. Property/invariance | folded into the test file's P3/P4 assertions; cross-confirmed in (2)'s tool-validation case | PASS |
+
+### Cross-agent reproduced values
+
+| Quantity | Code under test (compute_pairwise_ari ↔ reference) | Agent 1 | Agent 2 (independent-verifier) |
+|---|---|---|---|
+| `ARI(seed_0, GT)` | 1.0 | 1.0 | 1.0 |
+| `ARI(seed_1, GT)` | 1.0 | 1.0 | 1.0 |
+| `ARI(seed_0, seed_1)` | 1.0 | 1.0 | 1.0 |
+| `ARI(seed_0, σ(seed_1))` (σ=[3,1,0,2]) | 1.0 | 1.0 | 1.0 (Δ=0.000e+00) |
+| `ARI(rand(state=0), GT)` | — | +0.0314 | +0.0314 |
+| `ARI(rand(state=1), GT)` | — | −0.0088 | −0.0088 |
+| `ARI(rand(state=2), GT)` | — | −0.0259 | −0.0259 |
+| `ARI(rand(state=3), GT)` | — | −0.0510 | −0.0510 |
+| `ARI(rand(state=4), GT)` | — | −0.0108 | −0.0108 |
+
+max |random ARI| = 0.0510 (headroom against the 0.15 threshold = ~3×).
+
+### Honest caveat
+
+The properties pass with comfortable headroom, but the synthetic is "too easy" in one specific sense: with cluster_std=0.3 and 4 well-separated centers, **both KMeans runs converge to the same partition as ground truth**, so:
+
+- **P2** ("seeds agree") is trivially satisfied — there's only one partition for both seeds to land on.
+- **P3** ("permutation invariance") on the live inputs is degenerate — when ARI(A, B) = 1.0 because A and B are the same set-partition, *any* relabeling of B's identifiers gives ARI = 1.0 trivially.
+
+The non-degenerate confirmation of P3 came from the independent-verifier's tool-validation case on random labelings (ARI ≈ −0.0174 invariant under permutation to ≤ 1e-17). Permutation invariance is theoretically guaranteed by the Hubert-Arabie definition (the contingency formula uses only co-membership counts, not label identifiers). Rung 2 will exercise both P2 and P3 on non-degenerate data (higher noise, K-mismatch) where the two seeds will produce distinct partitions.
+
+### Adjudication
+
+**Rung 1 GREEN.** Every property holds within its threshold (and far inside it); both verifying agents independently reproduce every value within 1e-15. Pyright clean. The only finding is a non-blocking caveat about test-input difficulty (too-easy partitions); this carries forward as a design note for Rung 2 (`cluster_std` 0.3→1.0→2.0; degenerate / K-mismatch cases).
+
+**Next rung:** Rung 2 — escalating + degenerate ARI (n: 40→200→1000; clusters: 4→10→25; noise: 0.3→1.0→2.0; K-mismatch K=4 vs K=7; all-zeros and all-distinct degenerate labelings). Plan Task 3.
+
