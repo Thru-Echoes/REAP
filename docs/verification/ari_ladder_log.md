@@ -359,3 +359,82 @@ Re-derived every C1–C4 claim from first principles using scipy.special.comb + 
 
 **Next rung:** Rung 4 — AI-art + Korean forest cross-check. Same protocol against the production `seed_labels.npy` / `consensus_labels.npy` files in `results/{ai_art,korean_forest}/reap/set_{A,B,C}/`. Plan Task 5.
 
+---
+
+## Rung 4 — AI-art + Korean forest cross-check
+
+- **Test file:** `tests/verification/test_ari_rung4_real_corpora.py` (30 tests; 6 corpus × set combinations × 5 protocol checks minus the n/a single)
+- **Run:** `KMP_DUPLICATE_LIB_OK=TRUE pytest tests/verification/test_ari_rung4_real_corpora.py -v`
+- **Date:** 2026-05-20
+- **Commit:** to be filled post-commit
+- **Tolerance:** 1e-9 (code↔reference); 1e-6 (recomputed↔published-CSV)
+
+### Provenance pins (all 12 SHA256 hashes verified)
+
+Full 64-character SHA256 values are listed in the test file (`EXPECTED_HASHES`). Sets cover REAP per-seed labels (`(30, N)` int64) and consensus labels (`(N,)` int64), where N = 1742 for AI-art and N = 905 for Korean forest.
+
+### Code-vs-reference + matrix invariants + CSV cross-check
+
+| Corpus | Set | All 5 protocol checks (hash pin × 2, code↔ref, matrix invariants, CSV match) |
+|---|---|---|
+| ai_art | A | PASS |
+| ai_art | B | PASS |
+| ai_art | C | PASS |
+| korean_forest | A | PASS |
+| korean_forest | B | PASS |
+| korean_forest | C | PASS |
+
+### Independent-verifier subagent (KF set A — the historic disputed dataset)
+
+The independent-verifier subagent was dispatched specifically on Korean forest set A, the dataset where the 0.758-vs-0.123 narrative lived in prior sessions. The subagent re-derived (from `.npy` arrays only, with no `reap.evaluation` import and no `sklearn.metrics.adjusted_rand_score`):
+
+| Quantity | Recomputed (full precision) | Published CSV | Δ | Verdict |
+|---|---|---|---|---|
+| `s2s_ari_mean` | `0.6936628055093759` | `0.693663` | `-1.95e-07` | PASS |
+| `s2c_ari_mean` | `0.6561673107282628` | `0.656167` | `+3.11e-07` | PASS |
+| `s2c_ari_std` (ddof=0) | `0.03280288649967531` | `0.032803` | `-1.14e-07` | PASS |
+| Matrix invariants (diag, symmetric, bounds) | 30×30, 435 off-diag entries in [0.5692, 1.0] | — | — | PASS |
+| **`ext_ari`** (independent re-derivation from `reap.datasets.load_korean_forest()` ground truth + `consensus_labels.npy`, with from-scratch ARI) | `0.12263408758864326` | `0.122634` | `+8.76e-08` | **PASS** |
+
+**The historic "0.758 vs 0.123 KF ARI" question is now fully resolved.** REAP's published Korean forest `ext_ari = 0.122634` (consensus-vs-expert-labels) is **independently verified**: an outside verifier loading the raw arrays and re-implementing ARI from the Hubert-Arabie formula gets the same value to 1e-7. The sibling-project's reported ARI ≈ 0.758 therefore measures something definitionally different — different label set, different K, different subset, or different methodology — but it is **not** a bug in REAP's ARI computation. The manuscript prose must phrase REAP's Korean forest ARI as `0.122634` (consensus-vs-expert) with `consensus_K = 23` vs 20 ground-truth classes; quoting `0.75/0.758` without that exact provenance is incorrect.
+
+### Adjudication
+
+**Rung 4 GREEN.** All 30 tests pass on (corpus, set) ∈ {ai_art, korean_forest} × {A, B, C}.
+
+### What is now ladder-verified end-to-end (Rungs 0 → 4)
+
+REAP's seed-to-seed and seed-to-consensus ARI numbers for all production data:
+
+| Corpus | Set | s2s_mean | s2c_mean | s2c_std | Notes |
+|---|---|---|---|---|---|
+| ai_art | A | 0.7601 | 0.7175 | 0.0435 | No GT; ext_ari is null |
+| ai_art | B | 0.7617 | 0.7064 | 0.0388 | — |
+| ai_art | C | 0.7801 | 0.6750 | 0.0375 | — |
+| korean_forest | A | 0.6937 | 0.6562 | 0.0328 | ext_ari = 0.1226 (verified) |
+| korean_forest | B | 0.6626 | 0.6420 | 0.1012 | — |
+| korean_forest | C | 0.7074 | 0.6604 | 0.0285 | — |
+| twenty_newsgroups_reference | A | 0.8629 | 0.8411 | 0.0642 | ext_ari = 0.6436 |
+| twenty_newsgroups_reference | B | 0.9407 | 0.7956 | 0.0412 | — |
+| twenty_newsgroups_reference | C | 0.8795 | 0.7143 | 0.0850 | — |
+
+Every entry in this table is now Rungs-0-through-4 verified: bottom-up from closed-form known-answer hand values to production CSVs, with three independent code paths (`compute_pairwise_ari`/`compute_seed_stability`, the from-scratch `_reference_ari`, and at least one subagent's independent re-derivation per rung).
+
+### Full ladder regression (81 tests)
+
+```
+tests/verification/test_ari_rung0_closed_form.py .......                 [  8%]
+tests/verification/test_ari_rung1_synthetic.py ...........               [ 22%]
+tests/verification/test_ari_rung2_escalating.py ..................       [ 44%]
+tests/verification/test_ari_rung3_twentynewsgroups.py ...............    [ 62%]
+tests/verification/test_ari_rung4_real_corpora.py ..............................[100%]
+
+81 passed in 11.04s
+```
+
+### Ladder closed for s2s/s2c ARI
+
+The s2s/s2c ARI track of the verification ladder is GREEN through Rung 4 (the maximum rung defined in the plan). Any prose claim that quotes a REAP s2s/s2c ARI number from these CSVs is now backed by the full ladder.
+
+**Next ladder targets (separate sibling plans, per the reuse template):** external ARI (the `ext_ari` column — partially verified at Rung 4 for KF), AMI/NMI, silhouette (the load-bearing test of the silhouette circularity question), trustworthiness, continuity, Variation of Information, distance correlation, projection-head R², topic coherence (c_v / NPMI / UMass), filter retention/coverage. Each gets its own dated plan from the reuse template; none feeds the manuscript until ladder-GREEN through Rung 3.
+
