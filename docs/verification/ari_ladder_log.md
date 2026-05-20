@@ -300,3 +300,62 @@ Agent 2 (independent-verifier) was given a *property prediction* in its prompt: 
 
 **Next rung:** Rung 3 — 20-Newsgroups cross-check. Use the committed 20NG reference snapshot; compute s2s/s2c via `compute_seed_stability` AND `_reference_ari` on the same per-seed label arrays; assert agreement < 1e-9; record both numbers + delta + label-array provenance (paths, sha256, shapes) in this log. Plan Task 4.
 
+---
+
+## Rung 3 — 20-Newsgroups cross-check
+
+- **Test file:** `tests/verification/test_ari_rung3_twentynewsgroups.py` (15 tests)
+- **Run:** `KMP_DUPLICATE_LIB_OK=TRUE pytest tests/verification/test_ari_rung3_twentynewsgroups.py -v`
+- **Date:** 2026-05-20
+- **Commit:** to be filled post-commit on `feature/reap-foundation`
+- **Tolerance:** 1e-9 (code↔reference); 1e-6 (recomputed↔published-CSV, matching the 6-decimal CSV precision)
+
+### Load-bearing inputs (provenance pinned by SHA256)
+
+| Path (under `results/twenty_newsgroups_reference/`) | Shape | Full SHA256 |
+|---|---|---|
+| `reap/set_A/seed_labels.npy` | (30, 800) int64 | `675f98ca260cf967ec01ec5aff75d3b0d5ec35faac11e6bc9661708808f9d5eb` |
+| `reap/set_A/consensus_labels.npy` | (800,) int64 | `27c61f70e3cf8b1c432baba93d45d6ac42b133e3dffc0761588d3534dcd71562` |
+| `reap/set_B/seed_labels.npy` | (30, 800) int64 | `0f9218fe035093a11e6d9ea4b943ad00c7913180653bd5fecb594d798d283609` |
+| `reap/set_B/consensus_labels.npy` | (800,) int64 | `212075918a313251762968e79dda0642914b58011fdf95fda76015f8f0a0e6d9` |
+| `reap/set_C/seed_labels.npy` | (30, 800) int64 | `5db2640256e835a08b64ea46e57a85deb5e0133b5293b4b9c11773e80ec8ef6c` |
+| `reap/set_C/consensus_labels.npy` | (800,) int64 | `135cfc98c546bb2052694a498358ae83ba671d09dde46e2d062e9efe9ce29541` |
+
+K (number of clusters) varies per seed via `find_best_k` and per set per method:
+
+- set A: per-seed K ∈ {5, …}; REAP consensus K = 7
+- set B: per-seed K ∈ {5, 6, …}; REAP consensus K = 8
+- set C: per-seed K ∈ {5, 6, …}; REAP consensus K = 9
+
+### Structural finding (recorded as evidence, not a Rung failure)
+
+The cross-method SHA256 sweep shows **every method's `seed_labels.npy` is byte-identical to every other method's `seed_labels.npy` within the same set** (e.g. set A's REAP, Procrustes, best_of_n, naive_average, BERTopic, parametric_umap, single_seed all share `sha256[:16] = 675f98ca260cf967`). This empirically confirms that `s2s_ari_mean` being identical across methods within a set is a **structural property of the pipeline**, not a coincidence: all methods consume the same per-seed UMAP+KMeans labelings; methods differ only in how they combine those into a consensus. Conclusion: **`s2s_ari_mean` is a preprocessing-determined number; it is NOT a method-level claim**. The manuscript must phrase the s2s statistic as a property of the per-seed clustering stage, not of REAP.
+
+### Recomputed values for REAP (production ↔ from-scratch reference, 1e-9 gate)
+
+For every set in {A, B, C}, `compute_seed_stability(list(seed_labels), consensus_labels)` matches the from-scratch reference (`_reference_ari` + numpy mean/std/median over the upper-triangle and per-seed-vs-consensus arrays) on all six keys (`s2s_ari_mean/std/median`, `s2c_ari_mean/std/median`) within 1e-9.
+
+Concrete REAP-set-A values (recomputed at full precision):
+
+| Statistic | Recomputed (full precision) | Published CSV | Δ |
+|---|---|---|---|
+| `s2s_ari_mean` | `0.8629231409459044` | `0.862923` | `1.41e-07` |
+| `s2c_ari_mean` | `0.8411189830720281` | `0.841119` | `-1.69e-08` |
+| `s2c_ari_std` (ddof=0) | `0.06416611678730742` | `0.064166` | `1.17e-07` |
+
+The delta is purely CSV-rounding (the CSV writes 6 decimals; the float64 originals carry more).
+
+### Independent-verifier subagent (Step 4)
+
+Re-derived every C1–C4 claim from first principles using scipy.special.comb + a hand-rolled contingency-table ARI (no sklearn, no reap), plus a cross-check against scipy.sparse.coo_matrix as a separate code path (agreement ≤ 1e-10). Verdicts: C1 PASS, C2 PASS, C3 PASS against the on-disk CSV, C4 PASS (diagonal exactly 1.0, symmetric to 1e-12, all 435 off-diagonal entries in [-1, 1]).
+
+**Adversarial catch.** My verifier prompt mistakenly stated `s2c_ari_std published = 0.064161`. The actual CSV reads `0.064166`. The verifier correctly flagged the discrepancy, treated the CSV as the load-bearing artifact, and refused to rationalize: "the prompt-stated number does not [reproduce]; whoever prepared the verification prompt either transcribed the published value or the rounding is off in the last digit. I treat the CSV as the load-bearing artifact and the prompt as itself a claim being verified." This is exactly the rationalization-resistance behavior the v2 hardening was designed to produce. The verifier's behavior is recorded as evidence that the subagent contract holds under adversarial prompt-content drift.
+
+### Adjudication
+
+**Rung 3 GREEN.** All 15 tests pass (6 hash pins + 3 code-vs-reference + 3 pairwise-matrix invariants + 3 published-CSV-vs-recomputed). The independent verifier re-derived every load-bearing number from raw arrays without `reap` or `sklearn.metrics.adjusted_rand_score`, agreeing within float roundoff.
+
+**What this unlocks for the manuscript.** The 20NG s2s/s2c ARI numbers in `results/twenty_newsgroups_reference/combined_set_{A,B,C}/all_methods.csv` are now provably correct to within their printed 6-decimal precision. Any prose claim that quotes those exact numbers (e.g., "REAP achieves 0.84 seed-to-consensus ARI on 20NG") is backed by Rung-0-through-Rung-3 verification. **Caveat:** the s2s number is structural to the per-seed clustering stage, not a method claim — the manuscript must phrase it accordingly.
+
+**Next rung:** Rung 4 — AI-art + Korean forest cross-check. Same protocol against the production `seed_labels.npy` / `consensus_labels.npy` files in `results/{ai_art,korean_forest}/reap/set_{A,B,C}/`. Plan Task 5.
+
