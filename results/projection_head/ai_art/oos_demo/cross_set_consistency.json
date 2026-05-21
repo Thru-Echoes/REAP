@@ -1,0 +1,30 @@
+{
+  "git_commit": "4b9293366a2391013a45298de3b6c0bd7e6e9343",
+  "seed": 42,
+  "pairs": {
+    "A_vs_B": {
+      "artist": {
+        "procrustes_disparity": 0.3505151805982268
+      },
+      "public": {
+        "procrustes_disparity": 0.27830022844632085
+      }
+    },
+    "A_vs_C": {
+      "artist": {
+        "procrustes_disparity": 0.4477530141527067
+      },
+      "public": {
+        "procrustes_disparity": 0.2117087630424308
+      }
+    },
+    "B_vs_C": {
+      "artist": {
+        "procrustes_disparity": 0.16611439989076515
+      },
+      "public": {
+        "procrustes_disparity": 0.23601196520957607
+      }
+    }
+  }
+}

@@ -19,8 +19,9 @@ Cache
     `load_snapshot`, `write_snapshot`, `get_default_cache_dir`,
     `compute_payload_sha256`.
 Real datasets
-    `load_ai_art`, `load_korean_forest`. Both read from the REAP
-    cache (``~/.cache/reap/datasets/...``). Populate the cache with
+    `load_ai_art`, `load_ai_art_oos_artist`, `load_ai_art_oos_public`,
+    `load_korean_forest`. All read from the REAP cache
+    (``~/.cache/reap/datasets/...``). Populate the cache with
     ``python scripts/build_datasets.py`` pointed at a sibling source
     project.
 Stubs
@@ -42,6 +43,11 @@ from reap.datasets._schema import DatasetMetadata, DatasetSnapshot
 from reap.datasets.ai_art import (
     build_ai_art_snapshot,
     load_ai_art,
+)
+from reap.datasets.ai_art_oos import (
+    build_ai_art_oos_snapshot,
+    load_ai_art_oos_artist,
+    load_ai_art_oos_public,
 )
 from reap.datasets.korean_forest import (
     build_korean_forest_snapshot,
@@ -85,6 +91,9 @@ __all__ = [
     # Real datasets
     "load_ai_art",
     "build_ai_art_snapshot",
+    "load_ai_art_oos_artist",
+    "load_ai_art_oos_public",
+    "build_ai_art_oos_snapshot",
     "load_korean_forest",
     "build_korean_forest_snapshot",
     "load_korean_forest_oos",
