@@ -35,6 +35,20 @@ from reap.benchmarks import (
     run_benchmark,
     run_benchmark_with_artifacts,
 )
+from reap.analysis import (
+    assign_by_nearest_centroid,
+    compute_baserate_enrichment,
+    compute_cluster_centroids,
+    compute_contingency_cramers_v,
+    compute_demographic_contingency,
+    compute_kl_divergence,
+    compute_knn_purity,
+    compute_median_centroid_cosine,
+    compute_procrustes_disparity,
+    compute_source_separability_silhouette,
+    compute_temporal_alignment,
+    compute_theme_cluster_contingency,
+)
 from reap.clustering import find_best_k, get_cluster_sizes, run_kmeans
 from reap.consensus import (
     get_consensus_distance_matrix,
@@ -123,6 +137,19 @@ from reap.statistics import (
 from reap.validation import validate_cluster_sizes, validate_embeddings
 
 __all__ = [
+    # Analysis (cross-source + temporal helpers)
+    "compute_kl_divergence",
+    "compute_cluster_centroids",
+    "assign_by_nearest_centroid",
+    "compute_knn_purity",
+    "compute_median_centroid_cosine",
+    "compute_contingency_cramers_v",
+    "compute_theme_cluster_contingency",
+    "compute_source_separability_silhouette",
+    "compute_temporal_alignment",
+    "compute_procrustes_disparity",
+    "compute_demographic_contingency",
+    "compute_baserate_enrichment",
     # Consensus (core)
     "get_multi_seed_embeddings",
     "get_consensus_distance_matrix",

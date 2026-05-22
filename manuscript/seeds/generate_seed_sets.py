@@ -38,6 +38,7 @@ SET_A_SOURCE_PATH = "hye_in/data/random_seeds_v2.json"
 SET_A_MASTER_SEED = 20260120
 
 MASTER_SEED_BC = 20260413
+MASTER_SEED_D = 20260521  # Set D added 2026-05-21 for temporal-holdout protocol amendment
 SEED_RANGE_LOW = 0
 SEED_RANGE_HIGH = 2**31 - 1
 N_SEEDS_PER_SET = 30
@@ -93,6 +94,33 @@ def get_sets_b_and_c(
             if len(drawn) == 2 * n_per_set:
                 break
     return drawn[:n_per_set], drawn[n_per_set:]
+
+
+def get_set_d(
+    master_seed: int = MASTER_SEED_D,
+    n_per_set: int = N_SEEDS_PER_SET,
+    low: int = SEED_RANGE_LOW,
+    high: int = SEED_RANGE_HIGH,
+    exclude: list[int] | None = None,
+) -> list[int]:
+    """Draw Set D (30 seeds) deterministically, excluding seeds in `exclude`.
+
+    Internally reuses `get_sets_b_and_c` and returns the first of the two
+    sets it produces. This guarantees deterministic, byte-identical output
+    for a fixed (`master_seed`, `exclude`) pair, matching the manifest's
+    canonical Set D values when called with `master_seed=20260521` and
+    `exclude=A∪B∪C` from manifest schema_version=1.
+
+    Pure function; no side effects.
+    """
+    set_d, _ = get_sets_b_and_c(
+        master_seed=master_seed,
+        n_per_set=n_per_set,
+        low=low,
+        high=high,
+        exclude=exclude,
+    )
+    return set_d
 
 
 def build_manifest() -> dict:
