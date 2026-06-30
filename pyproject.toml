@@ -93,6 +93,7 @@ addopts = "-v --tb=short -ra"
 markers = [
     "llm: requires ANTHROPIC_API_KEY and/or OPENAI_API_KEY; makes real API calls",
     "slow: long-running tests (full topic-exclusion sweep, 5-fold × 500-epoch projection head, 30-seed benchmarks)",
+    "reference_platform: asserts a pre-registered metric range (evaluation_protocol.md §13) calibrated on the Linux reference environment (golden-validation job); skipped on platforms where ML-stack float behavior diverges (e.g. macOS)",
 ]
 
 [tool.pyright]

@@ -450,6 +450,7 @@ class TestTopicExclusionSemanticRouting:
             "threshold."
         )
 
+    @pytest.mark.reference_platform
     def test_overlap_pair_routes_to_partner(
         self, overlap_pair_exclusion_run: dict
     ) -> None:

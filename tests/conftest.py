@@ -3,9 +3,29 @@
 Uses synthetic data with known structure for deterministic, fast tests.
 """
 
+import platform
+
 import numpy as np
 import pytest
 from sklearn.datasets import make_blobs
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Skip ``reference_platform``-marked tests off the Linux reference environment.
+
+    Tests marked ``reference_platform`` assert pre-registered metric ranges
+    (``manuscript/evaluation_protocol.md`` §13) calibrated on the Linux reference
+    environment used by the dedicated golden-validation job. The
+    sentence-transformers / UMAP / torch float behavior on macOS diverges enough to
+    move these metrics below the pre-registered floors, so they are asserted on
+    Linux only; macOS still runs every other test. Side effect: skips the item.
+    """
+    if item.get_closest_marker("reference_platform") and platform.system() != "Linux":
+        pytest.skip(
+            "pre-registered metric range (evaluation_protocol §13) — calibrated on the "
+            f"Linux reference environment; ML-stack float behavior diverges on "
+            f"{platform.system()}, so it is asserted on Linux only"
+        )
 
 
 @pytest.fixture(scope="session")
