@@ -1,0 +1,39 @@
+{
+  "method": "procrustes",
+  "description": "Procrustes-align to first seed, then average coordinates",
+  "n_seeds": 30,
+  "runtime_seconds": 57.54584649996832,
+  "peak_memory_mb": 2.032644271850586,
+  "consensus": {
+    "k": 24,
+    "silhouette_cell_D": 0.4102524518966675,
+    "trustworthiness": 0.9394079385704153,
+    "continuity": 0.9310738430166711,
+    "davies_bouldin": 0.9128070056418341,
+    "calinski_harabasz": 1956.8866354973627
+  },
+  "headline_summary": {
+    "silhouette": 0.4102524518966675,
+    "silhouette_std": 0.0,
+    "trustworthiness": 0.9394079385704153,
+    "trustworthiness_std": 0.0,
+    "best_k": 24,
+    "best_k_std": 0.0
+  },
+  "s2s_summary": {
+    "ari_mean": 0.7601401536089051,
+    "ari_std": 0.07986201755677853,
+    "ami_mean": 0.8572450083941245,
+    "ami_std": 0.03413776149794809,
+    "nmi_mean": 0.8622254271637321,
+    "nmi_std": 0.032731201830589945
+  },
+  "s2c_summary": {
+    "ari_mean": 0.7421283435219271,
+    "ari_std": 0.052347583874316025,
+    "ami_mean": 0.8498061065667756,
+    "ami_std": 0.028930264827414932,
+    "nmi_mean": 0.8562063630486969,
+    "nmi_std": 0.02866194239937053
+  }
+}

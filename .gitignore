@@ -49,3 +49,24 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Throwaway tool scratch (not pushed)
+.playwright-mcp/
+
+# Internal process/triage scratch — local only, not for (soon-public) history
+docs/superpowers/
+
+HANDOFF_NEXT_SESSION.md
+
+# --- Manuscript / research material (policy change 2026-05-22) ---
+# This GitHub repo is kept focused on the open-source Python package (code,
+# tests, CI, packaging). The manuscript + research material (protocol,
+# proposals, sections, figures, run logs, experimental result artifacts) is
+# being separated into a sibling repo "REAP-research". These paths are
+# ignored here going forward; already-tracked files under them will be
+# removed from this repo (git rm) when the REAP-research split happens.
+# Standard package docs (README, CHANGELOG, CONTRIBUTING, CODE_OF_CONDUCT,
+# LICENSE) and the package's own docs/ stay tracked.
+manuscript/
+docs/verification/
+results/

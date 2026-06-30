@@ -1,0 +1,64 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (${{ matrix.os }} / py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+    env:
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package + CI extras (no tensorflow; see pyproject [ci])
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ci]"
+
+      - name: Run pytest
+        run: pytest tests/ -v --tb=short
+
+  # Parametric-UMAP baseline needs tensorflow, which cannot share a process
+  # with torch on the CI runners (transformers auto-loads both -> segfault).
+  # Run it in isolation: tensorflow + umap, NO torch.
+  test-parametric-umap:
+    name: pytest parametric-umap (isolated, no torch)
+    runs-on: ubuntu-latest
+    env:
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package + parametric-umap (tensorflow, no torch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[parametric-umap]" pytest
+
+      - name: Run parametric-umap baseline test
+        run: pytest tests/test_parametric_umap_baseline.py -v --tb=short

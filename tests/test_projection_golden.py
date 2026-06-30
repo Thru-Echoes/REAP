@@ -119,6 +119,11 @@ FAST_TIER_EXCLUDED_TOPICS: list[int] = [0, 2, 4, 6]
 # 4 talk.politics.guns, 5 talk.politics.mideast,
 # 6 comp.sys.ibm.pc.hardware, 7 comp.sys.mac.hardware.
 PAIR_PARTNER: dict[int, int] = {4: 5, 5: 4, 6: 7, 7: 6}
+# Topics in the fast-tier sweep that have a pair partner (used by the
+# overlap-pair routing test so it does not skip on separated topics).
+FAST_TIER_OVERLAP_PAIR_TOPICS: list[int] = [
+    t for t in FAST_TIER_EXCLUDED_TOPICS if t in PAIR_PARTNER
+]
 
 
 def _load_set_a_seeds(n: int) -> list[int]:
@@ -381,6 +386,20 @@ def _project_held_out_topic(
     }
 
 
+# Memoize the per-topic exclusion run so two fixtures (all topics +
+# overlap-pair-only) can share results without recomputing UMAP +
+# projection-head training per topic.
+_TOPIC_EXCLUSION_CACHE: dict[int, dict] = {}
+
+
+def _cached_topic_exclusion(
+    snap: DatasetSnapshot, seeds: list[int], topic: int
+) -> dict:
+    if topic not in _TOPIC_EXCLUSION_CACHE:
+        _TOPIC_EXCLUSION_CACHE[topic] = _project_held_out_topic(snap, seeds, topic)
+    return _TOPIC_EXCLUSION_CACHE[topic]
+
+
 @pytest.fixture(scope="module", params=FAST_TIER_EXCLUDED_TOPICS)
 def topic_exclusion_run(
     request: pytest.FixtureRequest,
@@ -388,7 +407,17 @@ def topic_exclusion_run(
     seeds_10: list[int],
 ) -> dict:
     """Parametrized: run topic-exclusion for each topic in FAST_TIER_EXCLUDED_TOPICS."""
-    return _project_held_out_topic(text_snap, seeds_10, int(request.param))
+    return _cached_topic_exclusion(text_snap, seeds_10, int(request.param))
+
+
+@pytest.fixture(scope="module", params=FAST_TIER_OVERLAP_PAIR_TOPICS)
+def overlap_pair_exclusion_run(
+    request: pytest.FixtureRequest,
+    text_snap: DatasetSnapshot,
+    seeds_10: list[int],
+) -> dict:
+    """Parametrized over overlap-pair members only — never produces a skip."""
+    return _cached_topic_exclusion(text_snap, seeds_10, int(request.param))
 
 
 class TestTopicExclusionSemanticRouting:
@@ -421,22 +450,25 @@ class TestTopicExclusionSemanticRouting:
             "threshold."
         )
 
+    @pytest.mark.reference_platform
     def test_overlap_pair_routes_to_partner(
-        self, topic_exclusion_run: dict
+        self, overlap_pair_exclusion_run: dict
     ) -> None:
         """Overlap-pair topics: held-out docs land in the pair-partner cluster.
 
-        Only applies when the excluded topic has a partner in the training
-        set; separated-topic runs skip this check.
+        Parametrized over `FAST_TIER_OVERLAP_PAIR_TOPICS` only — separated
+        topics are excluded from this fixture by construction, so this test
+        never skips. Separated topics are still covered by
+        `test_dominant_cluster_is_non_random`.
         """
-        topic = topic_exclusion_run["excluded_topic"]
-        partner = topic_exclusion_run["partner_class"]
-        if partner is None:
-            pytest.skip(
-                f"topic {topic} is not an overlap-pair member — no partner "
-                "expectation"
-            )
-        partner_frac = topic_exclusion_run["partner_fraction"]
+        topic = overlap_pair_exclusion_run["excluded_topic"]
+        partner = overlap_pair_exclusion_run["partner_class"]
+        assert partner is not None, (
+            f"Test bug: topic {topic} reached the overlap-pair test without "
+            f"a partner. FAST_TIER_OVERLAP_PAIR_TOPICS should only contain "
+            f"keys of PAIR_PARTNER."
+        )
+        partner_frac = overlap_pair_exclusion_run["partner_fraction"]
         assert partner_frac >= THRESH_OVERLAP_PAIR_PARTNER_FRACTION_MIN, (
             f"Overlap-pair topic {topic}: only {partner_frac:.4f} of "
             f"held-out docs landed in the pair partner (class {partner}), "

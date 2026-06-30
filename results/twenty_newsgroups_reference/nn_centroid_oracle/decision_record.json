@@ -1,0 +1,82 @@
+{
+  "tuning_criterion": "max held-out reference accept rate across sets",
+  "configs": [
+    {
+      "aggregation": "mean",
+      "metric": "euclidean",
+      "tuned_best_k": 1,
+      "heldout_accept_at_best_k": 0.9979166666666667,
+      "oos_accept_mean_across_sets": 0.9977777777777778,
+      "oos_accept_per_set": [
+        0.9966666666666667,
+        0.9983333333333333,
+        0.9983333333333333
+      ]
+    },
+    {
+      "aggregation": "median",
+      "metric": "euclidean",
+      "tuned_best_k": 1,
+      "heldout_accept_at_best_k": 0.9979166666666667,
+      "oos_accept_mean_across_sets": 0.9977777777777778,
+      "oos_accept_per_set": [
+        0.9966666666666667,
+        0.9983333333333333,
+        0.9983333333333333
+      ]
+    },
+    {
+      "aggregation": "distance_weighted_mean",
+      "metric": "euclidean",
+      "tuned_best_k": 1,
+      "heldout_accept_at_best_k": 0.9979166666666667,
+      "oos_accept_mean_across_sets": 0.9977777777777778,
+      "oos_accept_per_set": [
+        0.9966666666666667,
+        0.9983333333333333,
+        0.9983333333333333
+      ]
+    },
+    {
+      "aggregation": "mean",
+      "metric": "cosine",
+      "tuned_best_k": 1,
+      "heldout_accept_at_best_k": 0.9979166666666667,
+      "oos_accept_mean_across_sets": 0.9977777777777778,
+      "oos_accept_per_set": [
+        0.9966666666666667,
+        0.9983333333333333,
+        0.9983333333333333
+      ]
+    },
+    {
+      "aggregation": "median",
+      "metric": "cosine",
+      "tuned_best_k": 1,
+      "heldout_accept_at_best_k": 0.9979166666666667,
+      "oos_accept_mean_across_sets": 0.9977777777777778,
+      "oos_accept_per_set": [
+        0.9966666666666667,
+        0.9983333333333333,
+        0.9983333333333333
+      ]
+    },
+    {
+      "aggregation": "distance_weighted_mean",
+      "metric": "cosine",
+      "tuned_best_k": 1,
+      "heldout_accept_at_best_k": 0.9979166666666667,
+      "oos_accept_mean_across_sets": 0.9977777777777778,
+      "oos_accept_per_set": [
+        0.9966666666666667,
+        0.9983333333333333,
+        0.9983333333333333
+      ]
+    }
+  ],
+  "best_ceiling_oos_accept_rate": 0.9977777777777778,
+  "trained_head_accept_rate": 0.0517,
+  "ceiling_minus_trained_head_pp": 94.60777777777778,
+  "tripwire_gap_pp_threshold": 5.0,
+  "tripwire_triggered": true
+}

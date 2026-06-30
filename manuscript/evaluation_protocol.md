@@ -1,8 +1,8 @@
 # REAP — Pre-Registered Evaluation Protocol
 
 **Status:** Pre-registered protocol for the REAP methods paper.
-**Version:** 1.1
-**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1; see Changelog §15).
+**Version:** 1.4
+**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2) · Updated 2026-05-14 (v1.3) · Updated 2026-05-21 (v1.4; see Changelog §15).
 **Binding:** All experiments whose numbers appear in the manuscript
 must follow this protocol. Any deviation requires a TRACE correction
 event (`category="correction"`, with `corrects_event_ids` linking the
@@ -20,7 +20,7 @@ the analysis cannot drift to fit the result.
 
 | Tier | Dataset | n | Encoder | d_in | Labels? | License |
 |---|---|---|---|---|---|---|
-| Primary | AI-art discourse | 1,742 | intfloat/e5-large-v2 | 1024 | Yes (LLM-generated, human-verified — Nature Collection supp info) | per source |
+| Primary | AI-art discourse | 1,736 | intfloat/e5-large-v2 | 1024 | No per-chunk labels (cluster-level human-verified topic labels only) | public-domain |
 | Secondary | Korean forest policy | 905 | sentence-transformers/MiniLM | 384 | Yes (Hye In's expert taxonomy) | per source |
 | Tertiary | Corporate sustainability | 1,012 | TBD (locked at processing time) | TBD | Pending | per source |
 | Tertiary | US presidential | ~1,000 | TBD (locked at processing time) | TBD | Pending | per source |
@@ -114,10 +114,13 @@ execution order.
 | 8 | Cluster labeling | `reap.labeling` | dict cluster_id → top terms | non-empty per non-noise cluster, distinct top term per cluster | discriminativeness score ≥ floor |
 | 9 | Projection head training | `reap.projection` | trained model + CV metrics | converged (loss decreasing), no NaN gradients | CV R² ≥ 0.50, CV trustworthiness ≥ 0.80 |
 | 10 | Out-of-sample projection | `reap.projection.project` | `(N_test, d_low)` array | finite, expected shape | held-out cluster-assignment ARI vs full-rerun ≥ 0.70 |
+| 11 | Out-of-sample conformal filter | `reap.filter.apply` (planned) | `(N_test,)` boolean KEEP/REMOVE | per-cluster threshold finite + non-negative; retention non-decreasing as α decreases; (μ̂_c) shape correct | synthetic-shift in-distribution retention ≥ 0.85, shifted-distribution retention ≤ 0.30 |
 
 Every checkpoint is enforced by a test in
 `tests/test_golden_validation.py` (to be written next), wired into the
-`golden-validation` CI workflow.
+`golden-validation` CI workflow. Stage 11's `reap.filter` API is
+introduced in v1.2; the package code is pending and tracked in
+outline.md P0-11/P0-13.
 
 ---
 
@@ -230,6 +233,10 @@ cause spurious failures, while still catching real regressions.
 | Projection CV distance correlation (3-fold) | reap → head | 20ng text | ≥ 0.80 |
 | Topic-exclusion dominant-cluster fraction | reap → head | 20ng text | ≥ 0.30 |
 | Topic-exclusion pair-partner fraction (overlap-pair held-outs) | reap → head | 20ng text | ≥ 0.50 |
+| OOS filter in-distribution retention (synthetic shift) | reap → head → filter | 20ng text + register-shift | ≥ 0.85 |
+| OOS filter shifted-distribution retention (synthetic shift) | reap → head → filter | 20ng text + register-shift | ≤ 0.30 |
+| OOS filter retention monotone in α (mathematical invariant) | reap → head → filter | 20ng text | strict (Tier 1) |
+| Korean-forest OOS retention (Mahalanobis + pooled, α=0.01) | reap → head → filter | korean_forest_oos snapshot | observed band ≥ 0.45, ≤ 0.55 |
 
 ### 6.d Headline comparative claim on the golden fixture
 
@@ -460,6 +467,23 @@ addresses each:
 - **"Your 'distance averaging preserves metric properties' claim is
   hand-waved."** → Formal statement and proof in the Method section;
   triangle-inequality preservation tested in Tier 1 invariants.
+- **"Your 'OOS' corpus is in fact derived from the reference."** →
+  Every claimed-OOS source must pass substring + provenance audits
+  (`tests/verification/test_sibling_repo_parity.py`). Discovery
+  motivated by the AI-art public-probe subsequence finding
+  (round-2 audit 2026-05-21, TRACE evt_002 / evt_005). Public probes
+  on AI-art are explicitly NOT used as cross-corpus OOS data per §18;
+  artist probes (Lovato 2024) and KF external pledges are the true
+  OOS comparators.
+- **"Your temporal-holdout results inherit consensus-K drift across
+  strategies."** → Effective K reported per strategy; no fixed-K
+  comparison enforced. Cross-strategy comparison uses metrics that
+  are K-independent (trustworthiness, distance correlation) or
+  conditionally normalized (silhouette).
+- **"Your random-stratified holdouts inherit the master seed."** →
+  Master seeds for all random holdouts (T5, K2-T4, K2-T5) pre-
+  registered in §18 (T5: 20260521 / 20260522 / 20260523;
+  K2-T4: 20260524; K2-T5: 20260525); replicates reported.
 
 ---
 
@@ -520,7 +544,434 @@ Reviewers respect documented corrections; they reject silent ones.
 
 ---
 
+## 16. Out-of-Sample Conformal Filter Pre-Registration (v1.2)
+
+The OOS conformal filter (manuscript §3.6) is a methodological component
+of REAP that gates the projection head's outputs. This section
+pre-registers its defaults, the head-to-head variant comparison, and
+the verification-tier ranges that the package implementation must hit.
+
+### 16.a Filter Defaults
+
+| Parameter | Default | Notes |
+|---|---|---|
+| Distance metric | Mahalanobis with per-cluster reference covariance Σ_c | Σ_c estimated on reference points only |
+| Location correction | Pooled: μ̂_c = mean of OOS points in cluster c (pooled across subgroups) | One centroid per cluster, computed from OOS points only |
+| Threshold method | Empirical leave-one-out on reference per-cluster Mahalanobis | The (1−α) quantile of {M_c^LOO(x_i) leaving x_i out, for x_i in cluster c}, where M_c^LOO uses reference centroid and reference covariance both estimated without x_i |
+| α | 0.01 | 99th percentile reference LOO; pre-registered headline |
+| Hard-fallback rule (per-subgroup variant only) | n_(c, subgroup) < 10 → fall back to pooled centroid | Pooled variant has no fallback; per-subgroup uses the pooled cluster centroid when a (cluster, subgroup) cell is too small |
+| Calibration warning | n_c < ⌈1/α⌉ or n_c < d + 2 | Issued whenever the empirical-LOO quantile is undefined (small reference cluster) or covariance is rank-deficient |
+
+### 16.b Methods Under Comparison (Filter)
+
+The five filter variants reported head-to-head in §4.7 are
+pre-registered at this revision. Future runs that test additional
+variants must be reported as supplementary to these five — the
+"five-variant comparison" frame is fixed:
+
+1. Euclidean (no location correction)
+2. Euclidean + pooled location correction
+3. Mahalanobis (no location correction)
+4. **Mahalanobis + pooled location correction** (default)
+5. Mahalanobis + per-president (or other subgroup) location correction
+
+All variants use empirical leave-one-out at α = 0.01 unless explicitly
+noted; cross-α and cross-threshold-source comparisons live in the
+α-sensitivity supplementary table (§4.7.2).
+
+### 16.c Pre-Registered Synthetic-Shift Fixture
+
+To validate the filter via CI without depending on the Korean-forest
+OOS snapshot, REAP includes a synthetic-shift fixture built from the
+20newsgroups golden text fixture (§6.b):
+
+- **Reference:** the 400-document 20ng text fixture as today.
+- **In-distribution OOS:** held-out 20% of each class (also from
+  20newsgroups), embedded with the same MiniLM model.
+- **Shifted OOS:** the same held-out documents with a synthetic
+  register shift applied — concretely, prepending a short prefix
+  ("In a short letter to the editor:" or similar) and re-embedding.
+  The shift is large enough to move the corpus centroid while
+  preserving topic content. Pre-registered ranges in §6.c require
+  the filter to retain ≥ 85% of in-distribution OOS and ≤ 30% of
+  shifted-OOS at α = 0.01 with pooled location correction.
+
+Implementation of this fixture is tracked in outline.md P0-13.
+
+### 16.d Korean Forest OOS Replication
+
+The Korean-forest case study reported in §4.7 (1,662 pledges, 50.9%
+retention) is sibling-project work (`green-narrative/hye_in/`) and is
+*not* the pre-registered headline number for the manuscript. The
+manuscript's filter numbers must come from a re-run of the same harness
+against a locked snapshot of the OOS pledge corpus committed under
+`~/.cache/reap/datasets/korean_forest_oos/<version>/`, with a sibling
+`bundle.json` per §12. Pre-registered observed band: 45-55% overall
+retention at α = 0.01. A re-run that lands outside this band requires
+a TRACE correction (§13) before continuing.
+
+### 16.e Reproducibility Bundle for Filter Runs
+
+In addition to §12, every filter run records:
+
+- α value and threshold-source (`empirical_loo` vs `chi_squared`).
+- Per-cluster reference n_c values (for the small-cluster ceiling
+  diagnostic).
+- The per-cluster OOS centroids μ̂_c (one (1, d) vector per cluster); for the per-subgroup variant, the per-(cluster, subgroup) centroids and the fallback choices made per cell.
+- Per-cluster thresholds τ_c.
+
+Bundle field name: `filter_calibration` (sibling of `seed_set`).
+
+### 16.f Threats to Validity for the Filter (Pre-Registered)
+
+Filter-specific objections a reviewer will raise, and how this
+protocol addresses each:
+
+- **"Your retention number is calibrated on a single corpus."** →
+  Required pre-registered synthetic-shift fixture in CI (§16.c);
+  Korean forest OOS observed band recorded in §6.c; multi-corpus
+  validation listed as future work in Discussion §5.
+- **"Your α = 0.01 was chosen post-hoc to hit a target retention."** →
+  α = 0.01 was the design default before the five-variant comparison
+  was run; rejected alternatives (α ∈ {0.005, 0.001} with empirical
+  LOO; chi-squared theoretical at multiple α; β shrinkage at multiple
+  β values) are reported as the α-sensitivity table per §4.7.2 and the
+  supplementary `oos_filter_design_decisions.md`.
+- **"Mahalanobis is wrong for high-dimensional spaces."** → The filter
+  operates in the consensus space (typical d ≤ 20), not the embedding
+  space; covariance estimation is well-conditioned at d = 18, n_c ≥ 17.
+  We document the small-n_c ceiling and the calibration warning in §16.a.
+- **"Your conformal coverage statement is not rigorous."** → The
+  empirical-LOO threshold gives a finite-sample $(1-\alpha)$ coverage
+  bound under reference exchangeability (Vovk et al. 2005); we use
+  empirical LOO precisely because chi-squared theoretical thresholds
+  do not (they assume known centroid/covariance). Mahalanobis is
+  invariant to shift in the score under the location correction, so
+  the conformal exchangeability is preserved. The filter does not
+  claim coverage on out-of-distribution points by design — that is
+  the use case.
+- **"The location correction breaks exchangeability."** → The pooled
+  correction is a constant shift applied to every cluster; the LOO
+  reference distribution is computed *after* the correction is
+  applied, preserving the exchangeability of reference points relative
+  to the corrected centroid.
+
+---
+
+## 17. Topic-Attribution Evaluation (Cross-Dataset, v1.3)
+
+**Motivation.** The Mahalanobis conformal filter (§16) is purely
+geometric — it asks "does this projection land on the reference
+manifold?" but cannot, by construction, judge semantic similarity. The
+empirically informative bridge metric is therefore not "fraction of OOS
+accepted" but rather **topic-attribution accuracy**: of the OOS
+documents the projection head places into reference clusters, how often
+is the assigned cluster *semantically related* to the document's true
+class/theme? This section pre-registers a 3-LLM rubric-driven evaluation
+of topic attribution across three datasets, designed to defuse the
+"post-hoc circular labeling" reviewer objection.
+
+### 17.a Datasets and OOS structure
+
+| Dataset | Reference (n, K_REAP) | OOS source | OOS ground truth |
+|---|---|---|---|
+| 20-Newsgroups | 800 docs, K=7 | 12 held-out classes × 50 docs = 600 | Class assignment (no themes); rubric maps OOS class → reference cluster |
+| AI-art | 1,736 chunks public discourse, K=20 | 1,259 artist probes + 750 public probes from `when-algorithms-meet-artists/` | Per-doc theme labels (`compensation`, `threat`, `utility`, `ownership`, …) + per-doc cluster assignments from the AI-art panel's analysis (Hungarian-matched to our REAP labels at ARI = 0.94) |
+| Korean Forest | 905 docs, K=23 | 1,662 administration pledges across Lee/Park/Moon | Administration grouping; rubric maps {admin × labeled cluster} → relatedness |
+
+### 17.b Step A — Multi-LLM cluster naming
+
+For each reference cluster of each dataset, three independent LLM judges
+produce a name + macro-theme + description:
+
+- **Claude Opus 4.7** via dispatched subagent (no Anthropic API key
+  required; uses the agent-infrastructure pathway).
+- **`gpt-5.4-mini`** via OpenAI API (the existing
+  `OPENAI_DEFAULT_MODEL` in `src/reap/labeling.py`).
+- **`gpt-5.5`** via OpenAI API (added 2026-05-14 as a stronger judge).
+
+Inputs per cluster: top-10 c-TF-IDF terms, 5 representative documents
+(highest-density), cluster size. Output schema: `(label: str,
+macro_theme: str, description: str, confidence ∈ [0,1])` per judge.
+
+**For the AI-art dataset, Step A is run for cross-validation against the
+existing panel labels in `quad_llm_labels.csv` / `clusters_for_human_review.csv`** —
+a fourth independent labeling pass that we report alongside the
+sibling-project's labels. If our 3-LLM consensus agrees with the AI-art
+panel at semantic-cosine ≥ 0.7 per-cluster, the labels are usable
+directly; otherwise the divergence is reported as a methodological
+finding.
+
+### 17.c Step B — Multi-LLM relatedness rubric
+
+For each (OOS class/theme × labeled reference cluster) pair, the same
+three LLM judges score relatedness on a pre-registered 3-level scale:
+
+- **0 = disjoint**: no semantic overlap between OOS class/theme and
+  reference cluster.
+- **1 = marginal**: tangential or partial topical overlap.
+- **2 = clearly_related**: strong semantic affinity; the OOS doc
+  topically belongs to this cluster.
+
+Inputs per pair: OOS class/theme name + a 1-2 sentence description +
+3-5 sample texts; reference cluster's consensus name + macro_theme +
+description from Step A. Output schema: `(relatedness_score ∈ {0,1,2},
+rationale: str, confidence ∈ [0,1])`.
+
+### 17.d Consensus computation + rubric-defensibility analysis
+
+A fourth subagent (Claude Opus 4.7) consolidates the three judges'
+outputs:
+
+1. **Per-pair inter-rater agreement** via Krippendorff's α (ordinal
+   variant on the 0/1/2 score).
+2. **Per-pair consensus score** = mode of the three judges. Ties
+   (e.g., 0/1/2) are flagged AMBIGUOUS and excluded from the primary
+   topic-attribution metric.
+3. **Cross-LLM coherence summary**: per-dataset Krippendorff's α
+   reported as a defensibility number. Pre-registered acceptance band:
+   α ≥ 0.5 (substantial agreement) for the rubric to be considered
+   reliable; 0.4–0.5 → caveat in §5 limitations; < 0.4 → rubric is
+   re-built with a clarified prompt template.
+
+### 17.e Topic-attribution accuracy metric
+
+For each (dataset × method × seed set):
+
+- Project each OOS document via the method's projection mechanism
+  (REAP head, PUMAP encoder, etc.).
+- Assign to nearest reference-cluster centroid.
+- Look up the consensus relatedness score for (OOS class/theme, assigned
+  cluster) from the §17.d rubric.
+- A document is correctly attributed iff its assigned cluster has
+  relatedness = 2 (clearly_related).
+- Primary metric: **fraction of OOS documents correctly attributed** =
+  TP / N_total, where AMBIGUOUS pairs are excluded from the denominator.
+- Secondary: per-OOS-class accuracy, attribution-confusion-matrix
+  (cluster × class), and a "graded acceptance" stat using
+  relatedness ∈ {0,1,2} as a 3-level outcome.
+
+### 17.f Pre-registered acceptance criteria
+
+- **Krippendorff's α ≥ 0.5** per dataset (§17.d).
+- **REAP topic-attribution accuracy** is reported as mean ± 95% CI
+  across seed sets A/B/C, paired against each baseline via Wilcoxon
+  signed-rank on per-OOS-doc indicators.
+- **No dataset has < 50 OOS documents** in the AMBIGUOUS-excluded
+  numerator (insufficient power).
+- **Honest cap if any criterion fails**: the affected dataset is
+  reported as a methodology limitation, not silently dropped.
+
+### 17.g Reproducibility
+
+Each LLM call records: model_id, full prompt, raw response (stored as
+JSON under `results/<dataset>/topic_attribution/raw_llm_responses/`).
+Re-runs of the same prompt+model can drift due to provider sampling;
+report a hash of the prompt + the saved response so the consensus
+artefact is reproducible from the saved JSONs regardless of API
+behaviour.
+
+---
+
+## 18. Temporal Holdouts (v1.4)
+
+Pre-registered in
+`manuscript/proposals/2026-05-21-temporal-holdout-and-cross-source-protocol.md`;
+that proposal is the authoritative source. Summary follows.
+
+### 18.a Scope
+
+Eleven temporal-holdout experiments + one corpus-OOS evaluation,
+spread across AI-art (5 strategies × 1 encoder) and Korean forest
+(6 strategies × 3 encoders = 18 evaluations).
+
+### 18.b AI-art strategies (5)
+
+- **T1 future**: hold out year ∈ {2023, 2024, 2025} (960 of 1,736).
+- **T2 past**: hold out year ∈ {2013, 2015, 2016, 2017} (248 of 1,736).
+- **T3 single-recent**: hold out year == 2025 (220 of 1,736).
+- **T4 single-mid**: hold out year == 2019 (70 of 1,736).
+- **T5 random 20% stratified by year, 3 replicates** with
+  master_seeds 20260521 / 20260522 / 20260523.
+
+### 18.c Korean forest strategies (6 × 3 encoders = 18)
+
+- **K1**: corpus-OOS — project 1,662 external pledges into the
+  KF reference space.
+- **K2-T1 / T2 / T3**: hold out Moon / Lee / Park reference sentences.
+- **K2-T4**: random 20% stratified by president (master_seed=20260524).
+- **K2-T5**: random 20% unstratified (master_seed=20260525).
+
+Each strategy runs with three encoders:
+`paraphrase-multilingual-MiniLM-L12-v2` (canonical, 384-d);
+`paraphrase-multilingual-mpnet-base-v2` (768-d);
+`intfloat/multilingual-e5-large` (1024-d).
+
+### 18.d Common protocol per strategy
+
+1. Compute retained_indices and held_out_indices from per-row metadata.
+2. Re-embed in-set + held-out with the encoder (Set D's 30 seeds).
+3. Run consensus on the in-set encoding.
+4. Train projection head: MLP (canonical, `reap.projection.ProjectionHead`).
+5. Project held-out subset through head.
+6. Run baselines: Parametric UMAP, identity-projection (nearest-ref-chunk
+   in raw space), linear projection head (§11 ablation).
+7. Compute the metrics in §18.e.
+8. Save artifacts per §18.f.
+
+### 18.e Pre-registered metrics
+
+Per (strategy × method):
+- Trustworthiness on held-out (k=15, cosine default).
+- Distance correlation between raw and projected held-out.
+- Silhouette of held-out projections (nearest-centroid cluster labels).
+- Adapted Stage-10 ARI (held-out KMeans vs full-rerun KMeans on
+  the same held-out).
+- Source-separability silhouette (in-set ∪ held-out, binary labels).
+- Per-cluster occupancy distributions (KL + Wasserstein-1).
+
+Plus a cross-encoder Procrustes consistency metric on KF
+(disparity between projected coordinates from each pair of encoders).
+
+### 18.f Per-strategy artifacts
+
+Saved under `results/temporal_holdout/<corpus>/<strategy>[/<encoder>]/`:
+retained/held_out indices, in-set consensus + labels + per-seed CSVs,
+head state_dict, holdout projection + assignment, baselines (parametric_umap,
+identity, linear_head), `comparison_metrics.json`, `bundle.json`
+(per §12).
+
+### 18.g Statistical reporting (per §8)
+
+Mean ± 95% bootstrap CI (10,000 resamples) across Set D's 30 seeds.
+Paired Wilcoxon REAP vs each baseline per metric per strategy.
+Holm-Bonferroni within each corpus (216 total paired tests). Cohen's d.
+BH-FDR as sensitivity.
+
+### 18.h Pre-registered acceptance criteria
+
+- Per corpus: at least 3 of 6 strategies achieve trustworthiness mean
+  > 0.70 AND distance correlation mean > 0.70 on held-out.
+- Per corpus: at least one strategy shows REAP significantly outperforming
+  BOTH PUMAP and linear head on either trust or dist_corr at Holm-corrected
+  α=0.05.
+- K1 corpus-OOS trustworthiness > 0.65 (lower than within-corpus floor).
+
+### 18.i Threats (incremental to §11)
+
+- T-temporal-1 (OOS-corpus provenance): see §11.
+- T-temporal-2 (consensus-K drift across strategies): see §11.
+- T-temporal-3 (random-holdout master-seed inheritance): see §11.
+
+---
+
+## 19. Cross-Source Analyses (v1.4)
+
+Analyses that use the existing AI-art OOS demo projections
+(`results/projection_head/ai_art/oos_demo/`) without new compute.
+
+### 19.a A1 — Artist demographic stratification
+
+For each of 10 demographic variables in `artist_perspectives.csv`
+(`Art_practice`, `Age`, `POC`, `Gender_identity`, `Country`,
+`AI_models_familiarity`, `Used_AI_art_models`, `Professional_artist`,
+`Purchase_art`, `compensation`):
+- Build (n_levels × 20) contingency table of demographic → cluster.
+- Compute chi-square + Cramér's V.
+- Holm-Bonferroni across the 10 demographics at α=0.05.
+
+Acceptance: at least one demographic significantly associates with
+cluster assignment. If none, that itself is a finding (demographic
+uniformity in projection).
+
+### 19.b A2 — Artist-vs-public theme alignment
+
+Per theme:
+- Build artist-cluster occupancy and public-cluster occupancy
+  histograms (length 20).
+- Compute KL(artist || public) and Wasserstein-1.
+
+Descriptive; no acceptance threshold.
+
+**Caveat (pre-registered)**: public probes are theme-conditioned
+subsequence selections (round-2 audit, §11 T-OOS-provenance). The
+A2 comparison is between "artist stated concerns" and "style-controlled
+discourse passages selected to be theme-relevant" — not between two
+independent corpora.
+
+### 19.c A3 — Base-rate-corrected temporal alignment
+
+For each of 20 reference clusters:
+- `artist_density[c] = (n artist probes in c) / 1259`.
+- `corpus_year_share[c] = sum over y of (n chunks in c with year y) / 1736`.
+- `enrichment_ratio[c] = artist_density[c] / corpus_year_share[c]`.
+
+Bootstrap CI on enrichment ratios. Acceptance: count of clusters with
+lower-CI > 1 (artist-enriched) is reported with bootstrap CI; the
+2022–2024 mean-year clusters' over-representation in that set is
+reported.
+
+### 19.d Artifacts
+
+`results/projection_head/ai_art/oos_demo/cross_source/{A1,A2,A3}_*.json`
++ per-analysis smoke test
+(`tests/verification/test_ai_art_cross_source_smoke.py`).
+
+---
+
 ## 15. Changelog
+
+- **1.4 (2026-05-21)** — Added §18 (temporal holdouts: 5 AI-art × 1
+  encoder + 6 KF × 3 encoders = 23 evaluations) and §19 (cross-source
+  analyses A1/A2/A3 on existing AI-art projections). Three threats
+  to validity added to §11 (OOS-corpus provenance, consensus-K drift,
+  random-holdout seed inheritance). Set D (30 seeds,
+  master_seed=20260521) added to `seed_manifest.json`
+  (schema_version 1→2). Linear projection head specified as the §11
+  pre-registered ablation comparator. Multi-encoder ablation
+  (canonical MiniLM + mpnet 768-d + multilingual-e5-large 1024-d)
+  extended to all KF strategies (was AI-art-only in §10).
+  Authoritative source: `manuscript/proposals/2026-05-21-temporal-holdout-and-cross-source-protocol.md`.
+  Pre-registered before any compute; logged via TRACE
+  `trace_20260521_8c18e4` (evt_011 proposed-decision).
+
+- **1.3 (2026-05-14)** — Added §17 (topic-attribution evaluation,
+  3-LLM cross-dataset). Pre-registered the rubric construction pipeline
+  (Claude Opus 4.7 subagent + `gpt-5.4-mini` + `gpt-5.5`), the
+  consensus computation, the accuracy metric, and the Krippendorff's α
+  defensibility band. Locked the 20NG / AI-art / Korean Forest dataset
+  scope and per-dataset OOS structure for the bridge-claim
+  experiment.
+
+- **1.2 (2026-05-09)** — Added the OOS conformal filter (§3.6 in the
+  manuscript) as a fifth REAP methodology component subject to the
+  same pre-registration framework as the consensus pipeline. Changes:
+
+  1. **§4 pipeline table** gained Stage 11 (filter) with its math
+     invariants (per-cluster threshold finite, retention monotone in
+     α, μ̂_c shape correct) and statistical-property checks (synthetic
+     in-distribution retention ≥ 0.85, shifted retention ≤ 0.30).
+  2. **§6.c metric ranges** gained four filter rows: synthetic-shift
+     in-distribution and shifted retention bounds; the Tier-1
+     monotone-in-α invariant; and the observed Korean-forest OOS
+     retention band (0.45-0.55 overall at α = 0.01) as a sibling
+     reference number.
+  3. **§16 (new section)** pre-registers the filter defaults
+     (Mahalanobis + pooled location correction + empirical LOO at
+     α = 0.01), the five-variant head-to-head frame, the
+     synthetic-shift fixture for CI, the Korean-forest OOS replication
+     contract, the reproducibility-bundle additions, and the filter-
+     specific threats to validity.
+
+  This version was logged via TRACE in REAP session
+  `trace_20260509_947f1d`, building on the cross-project decisions
+  recorded in `trace_20260509_305aaf` (rejected alternatives) and
+  `trace_20260509_c4f4ac` (Hye In handoff). The Korean-forest validation
+  itself is sibling-project work in `green-narrative/hye_in/for_hyein/
+  park_moon_results_2026-05-07_v2/`, not REAP-internal — the manuscript
+  numbers will come from re-running the same harness against the
+  `korean_forest_oos` snapshot once it is locked under
+  `~/.cache/reap/datasets/`.
 
 - **1.1 (2026-04-13)** — Two material corrections resulting from the
   golden-validation reference run, logged in TRACE as corrections of

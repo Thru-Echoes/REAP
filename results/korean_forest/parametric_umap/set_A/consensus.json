@@ -1,0 +1,39 @@
+{
+  "method": "parametric_umap",
+  "description": "Sainburg 2021 parametric UMAP (Keras encoder MLP, single-seed, projectable)",
+  "n_seeds": 30,
+  "runtime_seconds": 83.84212104184553,
+  "peak_memory_mb": 24.950478553771973,
+  "consensus": {
+    "k": 28,
+    "silhouette_cell_D": 0.44177137704468583,
+    "trustworthiness": 0.8866534704735178,
+    "continuity": 0.8712410685575642,
+    "davies_bouldin": 0.8386549135119932,
+    "calinski_harabasz": 749.3224527492404
+  },
+  "headline_summary": {
+    "silhouette": 0.44177137704468583,
+    "silhouette_std": 0.0,
+    "trustworthiness": 0.8866534704735178,
+    "trustworthiness_std": 0.0,
+    "best_k": 28,
+    "best_k_std": 0.0
+  },
+  "s2s_summary": {
+    "ari_mean": 0.6936628055093759,
+    "ari_std": 0.04205806422083986,
+    "ami_mean": 0.8204007191946662,
+    "ami_std": 0.020748197426700265,
+    "nmi_mean": 0.8438348053012956,
+    "nmi_std": 0.018805040736663645
+  },
+  "s2c_summary": {
+    "ari_mean": 0.6083794619412172,
+    "ari_std": 0.02578589456985001,
+    "ami_mean": 0.7347278601858989,
+    "ami_std": 0.01020883849198531,
+    "nmi_mean": 0.7704148259459626,
+    "nmi_std": 0.009161624660432091
+  }
+}

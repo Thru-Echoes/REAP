@@ -1,0 +1,39 @@
+{
+  "method": "best_of_n",
+  "description": "Cherry-pick the seed with highest silhouette score",
+  "n_seeds": 30,
+  "runtime_seconds": 145.81595183396712,
+  "peak_memory_mb": 58.479329109191895,
+  "consensus": {
+    "k": 17,
+    "silhouette_cell_D": 0.410110741853714,
+    "trustworthiness": 0.9386299805499285,
+    "continuity": 0.9398277875072971,
+    "davies_bouldin": 0.8739202690963944,
+    "calinski_harabasz": 2030.4549232011457
+  },
+  "headline_summary": {
+    "silhouette": 0.410110741853714,
+    "silhouette_std": 0.0,
+    "trustworthiness": 0.9386299805499285,
+    "trustworthiness_std": 0.0,
+    "best_k": 17,
+    "best_k_std": 0.0
+  },
+  "s2s_summary": {
+    "ari_mean": 0.7601401536089051,
+    "ari_std": 0.07986201755677853,
+    "ami_mean": 0.8572450083941245,
+    "ami_std": 0.03413776149794809,
+    "nmi_mean": 0.8622254271637321,
+    "nmi_std": 0.032731201830589945
+  },
+  "s2c_summary": {
+    "ari_mean": 0.8005780268829383,
+    "ari_std": 0.08620916450614417,
+    "ami_mean": 0.8789311007389025,
+    "ami_std": 0.038803279191920885,
+    "nmi_mean": 0.8829188698268461,
+    "nmi_std": 0.03708889608195763
+  }
+}

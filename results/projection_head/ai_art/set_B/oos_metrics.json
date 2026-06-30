@@ -1,0 +1,112 @@
+{
+  "corpus": "ai_art",
+  "set": "B",
+  "git_commit": "cbdfdf784459428a3daf028fb8831c5ef0f87bfe",
+  "seed": 42,
+  "input_X_shape": [
+    1736,
+    1024
+  ],
+  "input_X_sha256": "ba4c0c88bbfc158858d430948d20cb35dfb5d5b76e2a1f7cc40ca44485f43f07",
+  "input_Y_shape": [
+    1736,
+    5
+  ],
+  "input_Y_sha256_from_disk": "23f93c2276520570d7132afc7c111fa6cb1e764549c828af796f2f9f55992d48",
+  "input_labels_shape": [
+    1736
+  ],
+  "input_labels_n_unique": 19,
+  "config": {
+    "input_dim": 1024,
+    "output_dim": 5,
+    "hidden_layers": [
+      128,
+      64
+    ],
+    "dropout": 0.3,
+    "alpha": 0.7,
+    "n_folds": 5,
+    "batch_size": 64,
+    "max_epochs": 500,
+    "patience": 50,
+    "lr": 0.001,
+    "weight_decay": 0.0001
+  },
+  "per_fold": [
+    {
+      "mse": 1.4367706775665283,
+      "trustworthiness": 0.7934689065723548,
+      "silhouette": 0.1586565226316452,
+      "ari": 0.4044996853739103,
+      "distance_correlation": 0.9022435698184657
+    },
+    {
+      "mse": 1.0506131649017334,
+      "trustworthiness": 0.8143327285017967,
+      "silhouette": 0.20184533298015594,
+      "ari": 0.48583923894543596,
+      "distance_correlation": 0.9318725244664424
+    },
+    {
+      "mse": 1.152769923210144,
+      "trustworthiness": 0.8183566371366564,
+      "silhouette": 0.2123384028673172,
+      "ari": 0.46056913790490334,
+      "distance_correlation": 0.9248610739211126
+    },
+    {
+      "mse": 1.025538444519043,
+      "trustworthiness": 0.7920043642746173,
+      "silhouette": 0.25635209679603577,
+      "ari": 0.5674933868055105,
+      "distance_correlation": 0.9346452033274253
+    },
+    {
+      "mse": 1.5310572385787964,
+      "trustworthiness": 0.7900528931108501,
+      "silhouette": 0.1368677318096161,
+      "ari": 0.39731355171929555,
+      "distance_correlation": 0.9004126569527743
+    }
+  ],
+  "cv_summary": {
+    "mse": {
+      "mean": 1.239349889755249,
+      "std": 0.2063497617382037,
+      "min": 1.025538444519043,
+      "max": 1.5310572385787964
+    },
+    "trustworthiness": {
+      "mean": 0.801643105919255,
+      "std": 0.012119608536924393,
+      "min": 0.7900528931108501,
+      "max": 0.8183566371366564
+    },
+    "silhouette": {
+      "mean": 0.19321201741695404,
+      "std": 0.0419423011349287,
+      "min": 0.1368677318096161,
+      "max": 0.25635209679603577
+    },
+    "ari": {
+      "mean": 0.4631430001498112,
+      "std": 0.06194078118023546,
+      "min": 0.39731355171929555,
+      "max": 0.5674933868055105
+    },
+    "distance_correlation": {
+      "mean": 0.918807005697244,
+      "std": 0.014634941071174756,
+      "min": 0.9004126569527743,
+      "max": 0.9346452033274253
+    }
+  },
+  "final_metrics": {
+    "mse": 0.05964835733175278,
+    "trustworthiness": 0.8810738430166711,
+    "silhouette": 0.6357488036155701,
+    "ari": 0.9661892242561715,
+    "distance_correlation": 0.9980694004417475
+  }
+}

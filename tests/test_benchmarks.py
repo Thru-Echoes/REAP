@@ -1,6 +1,6 @@
 """Tests for reap.benchmarks — consensus method comparison.
 
-Runs all five benchmark methods on small synthetic data and verifies
+Runs all six benchmark methods on small synthetic data and verifies
 structural properties of the results: correct types, expected method
 names, metric bounds, and key claims (REAP stability >= others,
 naive_average is the negative control).
@@ -35,6 +35,7 @@ ALL_METHOD_NAMES = {
     "naive_average",
     "procrustes",
     "reap",
+    "bertopic",
 }
 
 
@@ -95,7 +96,7 @@ class TestBenchmarkStructure:
     def test_has_all_methods(
         self, benchmark_result: BenchmarkResult
     ) -> None:
-        assert len(benchmark_result.methods) == 5
+        assert len(benchmark_result.methods) == 6
 
     def test_method_names(
         self, benchmark_result: BenchmarkResult
@@ -244,3 +245,98 @@ class TestSubsetOfMethods:
         assert len(result.methods) == 2
         names = {m.method for m in result.methods}
         assert names == {"reap", "procrustes"}
+
+
+class TestPerSeedAndCells:
+    """Per-seed distributions and the 2x2 (label_source x embedding_source) cells."""
+
+    def test_per_seed_vectors_length_matches_n_seeds(
+        self, benchmark_result: BenchmarkResult
+    ) -> None:
+        for m in benchmark_result.methods:
+            assert len(m.per_seed_silhouette) == len(SEEDS), (
+                f"{m.method} per_seed_silhouette len={len(m.per_seed_silhouette)}"
+            )
+            assert len(m.per_seed_trustworthiness) == len(SEEDS)
+            assert len(m.per_seed_continuity) == len(SEEDS)
+            assert len(m.per_seed_davies_bouldin) == len(SEEDS)
+            assert len(m.per_seed_calinski_harabasz) == len(SEEDS)
+            assert len(m.per_seed_k) == len(SEEDS)
+
+    def test_consensus_methods_have_cells_b_and_c(
+        self, benchmark_result: BenchmarkResult
+    ) -> None:
+        for name in ("procrustes", "reap", "naive_average", "best_of_n"):
+            m = _get_method(benchmark_result, name)
+            assert m.cell_b_silhouette is not None, f"{name} cell_b missing"
+            assert m.cell_c_silhouette is not None, f"{name} cell_c missing"
+            assert len(m.cell_b_silhouette) == len(SEEDS)
+            assert len(m.cell_c_silhouette) == len(SEEDS)
+
+    def test_single_seed_has_no_cells_b_c(
+        self, benchmark_result: BenchmarkResult
+    ) -> None:
+        m = _get_method(benchmark_result, "single_seed")
+        assert m.cell_b_silhouette is None
+        assert m.cell_c_silhouette is None
+
+    def test_consensus_singletons_populated(
+        self, benchmark_result: BenchmarkResult
+    ) -> None:
+        for name in ("procrustes", "reap", "naive_average", "best_of_n"):
+            m = _get_method(benchmark_result, name)
+            assert m.consensus_silhouette is not None
+            assert m.consensus_trustworthiness is not None
+            assert m.consensus_continuity is not None
+            assert m.consensus_davies_bouldin is not None
+            assert m.consensus_calinski_harabasz is not None
+            assert m.consensus_k is not None
+
+    def test_s2s_matrices_are_30x30(
+        self, benchmark_result: BenchmarkResult
+    ) -> None:
+        for m in benchmark_result.methods:
+            assert m.s2s_ari_matrix is not None
+            assert m.s2s_ami_matrix is not None
+            assert m.s2s_nmi_matrix is not None
+            n = len(SEEDS)
+            for matrix in (m.s2s_ari_matrix, m.s2s_ami_matrix, m.s2s_nmi_matrix):
+                assert len(matrix) == n
+                assert all(len(row) == n for row in matrix)
+
+    def test_s2c_lists_present_for_consensus(
+        self, benchmark_result: BenchmarkResult
+    ) -> None:
+        for name in ("procrustes", "reap", "naive_average", "best_of_n"):
+            m = _get_method(benchmark_result, name)
+            assert m.s2c_ari_list is not None
+            assert m.s2c_ami_list is not None
+            assert m.s2c_nmi_list is not None
+            assert len(m.s2c_ari_list) == len(SEEDS)
+
+
+class TestArtifactsReturn:
+    """run_benchmark_with_artifacts exposes the raw numpy arrays."""
+
+    def test_returns_umap_and_per_method(
+        self, small_data: dict[str, np.ndarray]
+    ) -> None:
+        from reap.benchmarks import BenchmarkArtifacts, run_benchmark_with_artifacts
+
+        _result, artifacts = run_benchmark_with_artifacts(
+            small_data["X"],
+            dataset_name="test_artifacts",
+            seeds=SEEDS,
+            n_components=3, n_neighbors=10, min_dist=0.1, k_range=K_RANGE,
+            methods=["reap", "procrustes", "single_seed"],
+        )
+        assert isinstance(artifacts, BenchmarkArtifacts)
+        assert len(artifacts.umap_embeddings) == len(SEEDS)
+        # REAP should have consensus_distance_matrix
+        assert "consensus_distance_matrix" in artifacts.per_method["reap"]
+        # Procrustes should have consensus_embedding + consensus_labels
+        assert "consensus_embedding" in artifacts.per_method["procrustes"]
+        assert "consensus_labels" in artifacts.per_method["procrustes"]
+        # single_seed has only per-seed labels (no consensus)
+        assert "seed_labels" in artifacts.per_method["single_seed"]
+        assert "consensus_embedding" not in artifacts.per_method["single_seed"]

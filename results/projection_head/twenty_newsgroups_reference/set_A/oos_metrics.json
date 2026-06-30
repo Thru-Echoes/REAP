@@ -1,0 +1,112 @@
+{
+  "corpus": "twenty_newsgroups_reference",
+  "set": "A",
+  "git_commit": "cbdfdf784459428a3daf028fb8831c5ef0f87bfe",
+  "seed": 42,
+  "input_X_shape": [
+    800,
+    384
+  ],
+  "input_X_sha256": "866ea5e30a773de03bf0ee7567290d712d0da7b9ddc8b1623208f53423b214a8",
+  "input_Y_shape": [
+    800,
+    5
+  ],
+  "input_Y_sha256_from_disk": "f2f04bd5b76d1283a85f29885a553a72cb8d4a5b5c267c9ab58d2229b7aa1401",
+  "input_labels_shape": [
+    800
+  ],
+  "input_labels_n_unique": 7,
+  "config": {
+    "input_dim": 384,
+    "output_dim": 5,
+    "hidden_layers": [
+      128,
+      64
+    ],
+    "dropout": 0.3,
+    "alpha": 0.7,
+    "n_folds": 5,
+    "batch_size": 64,
+    "max_epochs": 500,
+    "patience": 50,
+    "lr": 0.001,
+    "weight_decay": 0.0001
+  },
+  "per_fold": [
+    {
+      "mse": 3.6649625301361084,
+      "trustworthiness": 0.84713199513382,
+      "silhouette": 0.4260147511959076,
+      "ari": 0.7217608843406701,
+      "distance_correlation": 0.8064615738278194
+    },
+    {
+      "mse": 2.957204580307007,
+      "trustworthiness": 0.865212895377129,
+      "silhouette": 0.4963541626930237,
+      "ari": 0.7910295669336985,
+      "distance_correlation": 0.8551829151367699
+    },
+    {
+      "mse": 3.7357561588287354,
+      "trustworthiness": 0.8502189781021898,
+      "silhouette": 0.4083869457244873,
+      "ari": 0.5448747528650891,
+      "distance_correlation": 0.7981531275669719
+    },
+    {
+      "mse": 3.120002508163452,
+      "trustworthiness": 0.8687074209245742,
+      "silhouette": 0.5018247365951538,
+      "ari": 0.7460976601797619,
+      "distance_correlation": 0.8515339671746607
+    },
+    {
+      "mse": 2.962679147720337,
+      "trustworthiness": 0.8783789537712895,
+      "silhouette": 0.4738321304321289,
+      "ari": 0.7087145639069049,
+      "distance_correlation": 0.8445957951045788
+    }
+  ],
+  "cv_summary": {
+    "mse": {
+      "mean": 3.288120985031128,
+      "std": 0.34236491572297306,
+      "min": 2.957204580307007,
+      "max": 3.7357561588287354
+    },
+    "trustworthiness": {
+      "mean": 0.8619300486618006,
+      "std": 0.011691089756859169,
+      "min": 0.84713199513382,
+      "max": 0.8783789537712895
+    },
+    "silhouette": {
+      "mean": 0.4612825453281403,
+      "std": 0.0376110129190525,
+      "min": 0.4083869457244873,
+      "max": 0.5018247365951538
+    },
+    "ari": {
+      "mean": 0.7024954856452249,
+      "std": 0.08365830633858255,
+      "min": 0.5448747528650891,
+      "max": 0.7910295669336985
+    },
+    "distance_correlation": {
+      "mean": 0.8311854757621602,
+      "std": 0.02396740377394008,
+      "min": 0.7981531275669719,
+      "max": 0.8551829151367699
+    }
+  },
+  "final_metrics": {
+    "mse": 0.12035713344812393,
+    "trustworthiness": 0.9243977906477907,
+    "silhouette": 0.7823852300643921,
+    "ari": 0.9877302778808309,
+    "distance_correlation": 0.9980135770630879
+  }
+}

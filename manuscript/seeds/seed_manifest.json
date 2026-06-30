@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "description": "REAP three-seed-set design. Set A = legacy seeds from the green-narrative Korean forest policy project. Sets B and C = one-time deterministic draws from the same range, used to quantify between-seed-set reliability of the REAP consensus.",
+  "schema_version": 2,
+  "description": "REAP four-seed-set design. Set A = legacy seeds from the green-narrative Korean forest policy project. Sets B and C = one-time deterministic draws from the same range, used to quantify between-seed-set reliability of the REAP consensus. Set D = one-time deterministic draw added 2026-05-21 for the temporal-holdout + cross-source protocol amendment (manuscript/proposals/2026-05-21-temporal-holdout-and-cross-source-protocol.md); disjoint from A, B, and C.",
   "seed_range": {
     "low": 0,
     "high_exclusive": 2147483648
@@ -125,6 +125,49 @@
         "generated_by": "manuscript/seeds/generate_seed_sets.py",
         "generated_at": "2026-04-13T15:05:35.556427+00:00",
         "rng": "numpy.random.default_rng (PCG64)"
+      }
+    },
+    "D": {
+      "seeds": [
+        2066979148,
+        590608592,
+        485961518,
+        1197403538,
+        682866250,
+        413713477,
+        961991107,
+        1103026846,
+        2025730693,
+        1311651433,
+        1306549124,
+        285453910,
+        1962114123,
+        588454989,
+        325576083,
+        645547839,
+        1365261374,
+        1057574429,
+        2081646214,
+        1713960434,
+        224731056,
+        274257937,
+        2024279649,
+        799009507,
+        506777597,
+        1474346187,
+        212257292,
+        1158201964,
+        1876545074,
+        785733237
+      ],
+      "provenance": {
+        "master_seed": 20260521,
+        "generated_by": "manuscript/seeds/generate_seed_sets.py::get_sets_b_and_c (extended)",
+        "generated_at": "2026-05-21T20:30:00+00:00",
+        "rng": "numpy.random.default_rng (PCG64)",
+        "exclude_list_source": "Set A ∪ Set B ∪ Set C (90 seeds, manifest schema_version=1)",
+        "purpose": "Temporal-holdout + cross-source protocol amendment (manuscript/proposals/2026-05-21-temporal-holdout-and-cross-source-protocol.md)",
+        "reproducibility_note": "Re-derive via: get_sets_b_and_c(master_seed=20260521, n_per_set=30, exclude=A∪B∪C)[0] — returns these 30 seeds bit-identically."
       }
     }
   }

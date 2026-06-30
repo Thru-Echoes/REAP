@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "description": "Locked snapshot descriptors for REAP paper datasets. A dataset entry is committed here once its snapshot has been materialized and its SHA256 frozen. Loaders under src/reap/datasets/ read from `~/.cache/reap/datasets/<name>/<version>/` — this file is the authoritative record of what that cache *should* contain.",
+  "see_also": "manuscript/evaluation_protocol.md §1 (Datasets) and .claude/rules/open-source-package.md (Dataset API Contract)",
+  "datasets": {
+    "ai_art": {
+      "version": "2026-04-14",
+      "n_samples": 1736,
+      "embedding_dim": 1024,
+      "embedding_model": "intfloat/e5-large-v2 (prefix='query: ')",
+      "preprocessing_version": "wama-clean_chunks-e5_large_v2-query_prefix",
+      "sha256": "a1ffa42cb44d3ad87db220a0596d5cbf6886015671395474178e3e9cbe36dc44",
+      "license": "public-domain",
+      "license_note": "Publicly-available corpus; treated as public-domain for research use. Sibling pipeline code (When-Algorithms-Meet-Artists) is GPL-3.0.",
+      "labels": null,
+      "labels_note": "No per-chunk expert labels exist. Cluster-level human-verified topic labels live upstream but are not per-sample ground truth, so the snapshot exposes `labels=None`.",
+      "source_project": "When-Algorithms-Meet-Artists",
+      "source_artifacts": [
+        "data/public_discourse_clean_chunks.csv",
+        "figures/prefix_grid_search/prefix_embeddings_public.npy"
+      ],
+      "chunking": "WAMA text_processing.py — cleaned 250-word chunks",
+      "citation": null,
+      "citation_status": "Citation pending — real BibTeX must be added at publication time, attributing the When-Algorithms-Meet-Artists corpus authors. Do not fabricate a placeholder.",
+      "source_url": null
+    },
+    "korean_forest": {
+      "version": "2026-04-14",
+      "n_samples": 905,
+      "embedding_dim": 384,
+      "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "preprocessing_version": "hye_in-og_data-sentences6",
+      "sha256": "46d194daa36865ba009d4ebc67ca59934b860f594edf66ced7d845b097c50c0f",
+      "license": "public-domain",
+      "license_note": "Publicly-available corpus (Republic of Korea forest-policy documents across Moon/Park/Lee administrations); treated as public-domain for research use.",
+      "labels": {
+        "type": "expert_taxonomy",
+        "n_classes": 20,
+        "source_field": "strategy",
+        "source_description": "Human-authored policy-strategy descriptor attached by the corpus authors; the string-to-integer map is recorded in the snapshot's metadata.notes."
+      },
+      "source_project": "green-narrative/hye_in",
+      "source_artifacts": [
+        "data/og_data/Sections_of_Strategy_Sentences6.csv",
+        "data/og_data/Sections_of_Strategy_Sentences_embeddings6.csv"
+      ],
+      "chunking": "one row per strategy sentence (pre-chunked by Hye In)",
+      "citation": null,
+      "citation_status": "Citation pending — real BibTeX must be added at publication time, attributing Hye In Kim's Korean forest-policy corpus. Do not fabricate a placeholder.",
+      "source_url": null
+    },
+    "korean_forest_oos": {
+      "version": "2026-05-09",
+      "n_samples": 1662,
+      "embedding_dim": 18,
+      "embedding_model": "reap-projection-head/v1 (input: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)",
+      "preprocessing_version": "presidential-pledges-2026-05-07-projected-18d",
+      "sha256": "4bc96c128e7b9c3102d7148de715279271e3cb1110348b9eab1311e67216e75b",
+      "license": "public-domain",
+      "license_note": "Publicly-available presidential pledge corpus; treated as public-domain for research use.",
+      "labels": {
+        "type": "cluster_assignment",
+        "n_classes": 8,
+        "source_field": "cluster_k",
+        "source_description": "Cluster assignment from REAP's projection head + nearest-centroid against the 18-d consensus space defined by the reference Korean forest planning corpus. Source xlsx files use 1-indexed values; loader normalizes to 0-indexed."
+      },
+      "subgroups": {
+        "field": "presidents",
+        "values": ["Lee", "Park", "Moon"],
+        "counts": {"Lee": 480, "Park": 633, "Moon": 549},
+        "description": "Presidential election cycle the pledge sentence belongs to. Used by reap.filter.calibrate_per_subgroup."
+      },
+      "source_project": "green-narrative/hye_in",
+      "source_artifacts": [
+        "data_may7_2026/projections/Lee_projection.xlsx",
+        "data_may7_2026/projections/Park_projection.xlsx",
+        "data_may7_2026/projections/Moon_projection.xlsx"
+      ],
+      "chunking": "one row per district-level pledge sentence (provenance: green-narrative/hye_in source corpus)",
+      "data_quality_flags": [
+        "Park source xlsx has its text column renamed to the Korean letter 'ㅎ' (a typo); the loader maps it back to text_sentence on import.",
+        "Park and Moon files contain duplicated rows in some (cluster, president) cells; affects centroid estimates marginally (reported in §4.7.3).",
+        "Moon file has OCR artifacts (random Latin character fragments) consistent with PDF-based extraction."
+      ],
+      "citation": null,
+      "citation_status": "Citation pending — real BibTeX must be added at publication time, attributing the South Korean presidential pledge corpus authors. Do not fabricate a placeholder.",
+      "source_url": null,
+      "manuscript_role": "Powers the §4.7 OOS conformal filter validation and the §16 pre-registered Korean-forest filter replication. Reference reproduced metrics: 846/1662 (50.9%) overall retention under Mahalanobis + pooled correction at α=0.01."
+    },
+    "twenty_newsgroups_reference": {
+      "version": "1.0.0",
+      "n_samples": 800,
+      "embedding_dim": 384,
+      "embedding_model": "sentence-transformers/all-MiniLM-L6-v2 (L2-normalized)",
+      "preprocessing_version": "1.0.0-remove-headers-footers-quotes-truncate-2000",
+      "sha256": "7801d6f0a05921c8eb946d1583cf52a1e6e24b56438c36b1e47ae2b38578fde3",
+      "license": "by-permission",
+      "license_note": "20-Newsgroups (Lang 1995) is freely distributed for research use via scikit-learn's bundled fetcher; treated as 'by-permission' under the original author's research-use grant.",
+      "labels": {
+        "type": "expert_taxonomy",
+        "n_classes": 8,
+        "source_field": "category_id",
+        "source_description": "Original 20newsgroups category labels for the 8-class manuscript subset: sci.space, rec.sport.hockey, comp.graphics, soc.religion.christian, talk.politics.guns, talk.politics.mideast, comp.sys.ibm.pc.hardware, comp.sys.mac.hardware."
+      },
+      "source_project": "sklearn.datasets.fetch_20newsgroups",
+      "source_artifacts": [
+        "sklearn-bundled 20newsgroups archive"
+      ],
+      "chunking": "one row per newsgroup post; sklearn remove=('headers','footers','quotes') strip then truncate to 2000 chars; 100 docs per class sampled with seed=20260413",
+      "citation": "Lang 1995",
+      "citation_status": "@inproceedings{lang1995newsweeder, title={NewsWeeder: Learning to Filter Netnews}, author={Lang, Ken}, booktitle={Proc. 12th Int. Conf. on Machine Learning}, year={1995}, pages={331-339}}",
+      "source_url": "https://scikit-learn.org/stable/datasets/real_world.html#the-20-newsgroups-text-dataset",
+      "manuscript_role": "Third real-dataset replication in the manuscript cross-corpus validation. Paired with twenty_newsgroups_oos for class-held-out OOS projection-head evaluation: the reference snapshot trains the consensus reducer and projection head on these 8 classes, then twenty_newsgroups_oos projects 12 unseen classes."
+    },
+    "twenty_newsgroups_oos": {
+      "version": "1.0.0",
+      "n_samples": 600,
+      "embedding_dim": 384,
+      "embedding_model": "sentence-transformers/all-MiniLM-L6-v2 (L2-normalized)",
+      "preprocessing_version": "1.0.0-remove-headers-footers-quotes-truncate-2000",
+      "sha256": "257242234126355cf46e571acdaa9a69c3530d97ca2c07cbcf91636c93b161d1",
+      "license": "by-permission",
+      "license_note": "20-Newsgroups (Lang 1995) is freely distributed for research use via scikit-learn's bundled fetcher; treated as 'by-permission' under the original author's research-use grant.",
+      "labels": {
+        "type": "expert_taxonomy",
+        "n_classes": 12,
+        "source_field": "category_id",
+        "source_description": "Original 20newsgroups category labels for the 12 held-out classes, offset by LABEL_OFFSET=100 to be disjoint from the reference snapshot. Classes: alt.atheism, comp.os.ms-windows.misc, comp.windows.x, misc.forsale, rec.autos, rec.motorcycles, rec.sport.baseball, sci.crypt, sci.electronics, sci.med, talk.politics.misc, talk.religion.misc."
+      },
+      "source_project": "sklearn.datasets.fetch_20newsgroups",
+      "source_artifacts": [
+        "sklearn-bundled 20newsgroups archive"
+      ],
+      "chunking": "one row per newsgroup post; sklearn remove=('headers','footers','quotes') strip then truncate to 2000 chars; 50 docs per class sampled with seed=20260413",
+      "citation": "Lang 1995",
+      "citation_status": "@inproceedings{lang1995newsweeder, title={NewsWeeder: Learning to Filter Netnews}, author={Lang, Ken}, booktitle={Proc. 12th Int. Conf. on Machine Learning}, year={1995}, pages={331-339}}",
+      "source_url": "https://scikit-learn.org/stable/datasets/real_world.html#the-20-newsgroups-text-dataset",
+      "manuscript_role": "Class-held-out OOS partner of twenty_newsgroups_reference. Every document belongs to a 20newsgroups category the reference snapshot has not seen, providing a true class-held-out test of REAP's projection head's ability to embed semantically unseen topical content."
+    },
+    "corp_sustainability": {
+      "status": "pending",
+      "note": "Data extraction in progress. Loader at reap.datasets.load_corp_sustainability raises NotImplementedError until the snapshot is locked and entered here."
+    },
+    "us_presidential": {
+      "status": "pending",
+      "note": "Infrastructure ready; data extraction pending. Loader at reap.datasets.load_us_presidential raises NotImplementedError until the snapshot is locked and entered here."
+    }
+  }
+}

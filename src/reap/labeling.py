@@ -31,6 +31,25 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# LLM provider defaults — DO NOT BUMP WITHOUT ASKING
+# ---------------------------------------------------------------------------
+# These are the pinned default models for `label_clusters_llm` /
+# `label_clusters_combined`. They match the `evaluation_protocol.md` §7
+# pre-registration: changing either constant changes the LLM-labeling
+# numbers that go into the manuscript.
+#
+# The OpenAI default is locked at `gpt-5.4-mini`. If a newer OpenAI
+# model becomes available, **ask Oliver before bumping** — this is not
+# a routine refresh, it changes pre-registered behaviour. (The
+# Anthropic default has the same lock-in policy by analogy; confirm with
+# Oliver before bumping that one too.)
+#
+# Callers may always override per-call via the `model=` argument.
+OPENAI_DEFAULT_MODEL: str = "gpt-5.4-mini"
+ANTHROPIC_DEFAULT_MODEL: str = "claude-opus-4-6"
+
+
+# ---------------------------------------------------------------------------
 # Point stratification
 # ---------------------------------------------------------------------------
 
@@ -356,11 +375,24 @@ def _call_llm(provider: str, model: str, prompt: str) -> str:
         import openai
 
         client = openai.OpenAI()
-        response = client.chat.completions.create(
-            model=model,
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        # GPT-5+ / reasoning models reject the legacy ``max_tokens`` parameter
+        # and require ``max_completion_tokens`` instead (OpenAI API change,
+        # 2025). Older models (gpt-4*, gpt-3.5*) still use ``max_tokens``.
+        # 800 leaves room for JSON outputs with rationale fields.
+        max_out = 800
+        use_new_param = model.lower().startswith(("gpt-5", "o1", "o3"))
+        if use_new_param:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],  # type: ignore[arg-type]
+                max_completion_tokens=max_out,
+            )
+        else:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],  # type: ignore[arg-type]
+                max_tokens=max_out,
+            )
         return response.choices[0].message.content or ""
 
     raise ValueError(f"Unknown provider: {provider!r}")
@@ -443,10 +475,14 @@ def label_clusters_llm(
     _check_llm_provider(provider)
     rng = np.random.default_rng(random_state)
 
-    # Default to Claude Opus 4.6 (best-in-class reasoning) + OpenAI gpt-5.4-mini.
-    # For batch labeling at scale, claude-sonnet-4-6 is a cheaper alternative
-    # that typically matches Opus on well-scoped prompts like cluster labeling.
-    default_models = {"anthropic": "claude-opus-4-6", "openai": "gpt-5.4-mini"}
+    # Defaults are pinned at module-level (see ANTHROPIC_DEFAULT_MODEL /
+    # OPENAI_DEFAULT_MODEL above). For batch labeling at scale,
+    # claude-sonnet-4-6 is a cheaper Anthropic alternative that typically
+    # matches Opus on well-scoped prompts like cluster labeling.
+    default_models = {
+        "anthropic": ANTHROPIC_DEFAULT_MODEL,
+        "openai": OPENAI_DEFAULT_MODEL,
+    }
     model_name = model or default_models[provider]
 
     results: list[LLMClusterLabel] = []

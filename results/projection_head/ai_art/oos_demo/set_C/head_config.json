@@ -1,0 +1,16 @@
+{
+  "input_dim": 1024,
+  "output_dim": 5,
+  "hidden_layers": [
+    128,
+    64
+  ],
+  "dropout": 0.3,
+  "alpha": 0.7,
+  "n_folds": 2,
+  "batch_size": 64,
+  "max_epochs": 500,
+  "patience": 50,
+  "lr": 0.001,
+  "weight_decay": 0.0001
+}

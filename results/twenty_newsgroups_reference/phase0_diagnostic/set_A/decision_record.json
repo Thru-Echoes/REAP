@@ -1,0 +1,13 @@
+{
+  "set": "A",
+  "d1_small_eig_mean_r2": -5590.413433619048,
+  "d1_large_eig_mean_r2": -5.268884555555555,
+  "d2_non_gaussian_clusters": 1,
+  "d2_total_clusters": 7,
+  "d3_oracle_accept_rate": 0.805,
+  "d3_oracle_accept_count": 483,
+  "d3_n_oos": 600,
+  "trained_head_accept_rate_for_comparison": 0.0517,
+  "d3_oracle_vs_trained_gap": 0.7533000000000001,
+  "verdict": "HEAD_IS_ROOT_CAUSE \u2014 pivot to head-loss fix"
+}

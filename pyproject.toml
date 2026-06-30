@@ -22,6 +22,12 @@ keywords = [
     "nlp",
 ]
 classifiers = [
+    # PyPI rejects any upload that carries this classifier — from this repo's CI,
+    # a local `twine upload`, or anyone. REAP is NOT yet a publishable package, so
+    # this is the source-agnostic backstop against accidental publication. Remove it
+    # ONLY in the deliberate PR that makes REAP publishable (and that restores the
+    # publish job in .github/workflows/release.yml).
+    "Private :: Do Not Upload",
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
@@ -45,10 +51,26 @@ dependencies = [
 [project.optional-dependencies]
 projection = ["torch>=2.0"]
 labeling = ["openai>=1.0", "anthropic>=0.20"]
+baselines = ["bertopic>=0.16", "hdbscan>=0.8"]
+parametric-umap = ["tensorflow>=2.13"]
 text-fixtures = ["sentence-transformers>=2.0"]
-all = ["reap-topics[projection,labeling,text-fixtures]"]
+coherence = ["gensim>=4.0"]
+all = ["reap-topics[projection,labeling,baselines,parametric-umap,text-fixtures,coherence]"]
 dev = [
     "reap-topics[all]",
+    "pytest>=7.0",
+    "pytest-cov",
+    "pyright",
+    "ruff",
+]
+# CI test environment: everything in `dev` EXCEPT parametric-umap (tensorflow).
+# torch (projection) and tensorflow cannot coexist in one process on the CI
+# x86 runners — `transformers` (via sentence-transformers) auto-imports both
+# when both are installed, which segfaults. The torch-bearing CI jobs use
+# `[ci]` (no tf); a separate isolated job installs `[parametric-umap]` (tf,
+# no torch) to keep parametric-umap baseline coverage. See test.yml.
+ci = [
+    "reap-topics[projection,labeling,baselines,text-fixtures,coherence]",
     "pytest>=7.0",
     "pytest-cov",
     "pyright",
@@ -67,10 +89,11 @@ packages = ["src/reap"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -ra"
 markers = [
     "llm: requires ANTHROPIC_API_KEY and/or OPENAI_API_KEY; makes real API calls",
     "slow: long-running tests (full topic-exclusion sweep, 5-fold × 500-epoch projection head, 30-seed benchmarks)",
+    "reference_platform: asserts a pre-registered metric range (evaluation_protocol.md §13) calibrated on the Linux reference environment (golden-validation job); skipped on platforms where ML-stack float behavior diverges (e.g. macOS)",
 ]
 
 [tool.pyright]
