@@ -57,6 +57,19 @@ dev = [
     "pyright",
     "ruff",
 ]
+# CI test environment: everything in `dev` EXCEPT parametric-umap (tensorflow).
+# torch (projection) and tensorflow cannot coexist in one process on the CI
+# x86 runners — `transformers` (via sentence-transformers) auto-imports both
+# when both are installed, which segfaults. The torch-bearing CI jobs use
+# `[ci]` (no tf); a separate isolated job installs `[parametric-umap]` (tf,
+# no torch) to keep parametric-umap baseline coverage. See test.yml.
+ci = [
+    "reap-topics[projection,labeling,baselines,text-fixtures,coherence]",
+    "pytest>=7.0",
+    "pytest-cov",
+    "pyright",
+    "ruff",
+]
 
 [project.urls]
 Homepage = "https://github.com/Thru-Echoes/reap-topics"

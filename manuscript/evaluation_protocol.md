@@ -1,8 +1,8 @@
 # REAP — Pre-Registered Evaluation Protocol
 
 **Status:** Pre-registered protocol for the REAP methods paper.
-**Version:** 1.2
-**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2; see Changelog §15).
+**Version:** 1.4
+**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2) · Updated 2026-05-14 (v1.3) · Updated 2026-05-21 (v1.4; see Changelog §15).
 **Binding:** All experiments whose numbers appear in the manuscript
 must follow this protocol. Any deviation requires a TRACE correction
 event (`category="correction"`, with `corrects_event_ids` linking the
@@ -467,6 +467,23 @@ addresses each:
 - **"Your 'distance averaging preserves metric properties' claim is
   hand-waved."** → Formal statement and proof in the Method section;
   triangle-inequality preservation tested in Tier 1 invariants.
+- **"Your 'OOS' corpus is in fact derived from the reference."** →
+  Every claimed-OOS source must pass substring + provenance audits
+  (`tests/verification/test_sibling_repo_parity.py`). Discovery
+  motivated by the AI-art public-probe subsequence finding
+  (round-2 audit 2026-05-21, TRACE evt_002 / evt_005). Public probes
+  on AI-art are explicitly NOT used as cross-corpus OOS data per §18;
+  artist probes (Lovato 2024) and KF external pledges are the true
+  OOS comparators.
+- **"Your temporal-holdout results inherit consensus-K drift across
+  strategies."** → Effective K reported per strategy; no fixed-K
+  comparison enforced. Cross-strategy comparison uses metrics that
+  are K-independent (trustworthiness, distance correlation) or
+  conditionally normalized (silhouette).
+- **"Your random-stratified holdouts inherit the master seed."** →
+  Master seeds for all random holdouts (T5, K2-T4, K2-T5) pre-
+  registered in §18 (T5: 20260521 / 20260522 / 20260523;
+  K2-T4: 20260524; K2-T5: 20260525); replicates reported.
 
 ---
 
@@ -756,7 +773,167 @@ behaviour.
 
 ---
 
+## 18. Temporal Holdouts (v1.4)
+
+Pre-registered in
+`manuscript/proposals/2026-05-21-temporal-holdout-and-cross-source-protocol.md`;
+that proposal is the authoritative source. Summary follows.
+
+### 18.a Scope
+
+Eleven temporal-holdout experiments + one corpus-OOS evaluation,
+spread across AI-art (5 strategies × 1 encoder) and Korean forest
+(6 strategies × 3 encoders = 18 evaluations).
+
+### 18.b AI-art strategies (5)
+
+- **T1 future**: hold out year ∈ {2023, 2024, 2025} (960 of 1,736).
+- **T2 past**: hold out year ∈ {2013, 2015, 2016, 2017} (248 of 1,736).
+- **T3 single-recent**: hold out year == 2025 (220 of 1,736).
+- **T4 single-mid**: hold out year == 2019 (70 of 1,736).
+- **T5 random 20% stratified by year, 3 replicates** with
+  master_seeds 20260521 / 20260522 / 20260523.
+
+### 18.c Korean forest strategies (6 × 3 encoders = 18)
+
+- **K1**: corpus-OOS — project 1,662 external pledges into the
+  KF reference space.
+- **K2-T1 / T2 / T3**: hold out Moon / Lee / Park reference sentences.
+- **K2-T4**: random 20% stratified by president (master_seed=20260524).
+- **K2-T5**: random 20% unstratified (master_seed=20260525).
+
+Each strategy runs with three encoders:
+`paraphrase-multilingual-MiniLM-L12-v2` (canonical, 384-d);
+`paraphrase-multilingual-mpnet-base-v2` (768-d);
+`intfloat/multilingual-e5-large` (1024-d).
+
+### 18.d Common protocol per strategy
+
+1. Compute retained_indices and held_out_indices from per-row metadata.
+2. Re-embed in-set + held-out with the encoder (Set D's 30 seeds).
+3. Run consensus on the in-set encoding.
+4. Train projection head: MLP (canonical, `reap.projection.ProjectionHead`).
+5. Project held-out subset through head.
+6. Run baselines: Parametric UMAP, identity-projection (nearest-ref-chunk
+   in raw space), linear projection head (§11 ablation).
+7. Compute the metrics in §18.e.
+8. Save artifacts per §18.f.
+
+### 18.e Pre-registered metrics
+
+Per (strategy × method):
+- Trustworthiness on held-out (k=15, cosine default).
+- Distance correlation between raw and projected held-out.
+- Silhouette of held-out projections (nearest-centroid cluster labels).
+- Adapted Stage-10 ARI (held-out KMeans vs full-rerun KMeans on
+  the same held-out).
+- Source-separability silhouette (in-set ∪ held-out, binary labels).
+- Per-cluster occupancy distributions (KL + Wasserstein-1).
+
+Plus a cross-encoder Procrustes consistency metric on KF
+(disparity between projected coordinates from each pair of encoders).
+
+### 18.f Per-strategy artifacts
+
+Saved under `results/temporal_holdout/<corpus>/<strategy>[/<encoder>]/`:
+retained/held_out indices, in-set consensus + labels + per-seed CSVs,
+head state_dict, holdout projection + assignment, baselines (parametric_umap,
+identity, linear_head), `comparison_metrics.json`, `bundle.json`
+(per §12).
+
+### 18.g Statistical reporting (per §8)
+
+Mean ± 95% bootstrap CI (10,000 resamples) across Set D's 30 seeds.
+Paired Wilcoxon REAP vs each baseline per metric per strategy.
+Holm-Bonferroni within each corpus (216 total paired tests). Cohen's d.
+BH-FDR as sensitivity.
+
+### 18.h Pre-registered acceptance criteria
+
+- Per corpus: at least 3 of 6 strategies achieve trustworthiness mean
+  > 0.70 AND distance correlation mean > 0.70 on held-out.
+- Per corpus: at least one strategy shows REAP significantly outperforming
+  BOTH PUMAP and linear head on either trust or dist_corr at Holm-corrected
+  α=0.05.
+- K1 corpus-OOS trustworthiness > 0.65 (lower than within-corpus floor).
+
+### 18.i Threats (incremental to §11)
+
+- T-temporal-1 (OOS-corpus provenance): see §11.
+- T-temporal-2 (consensus-K drift across strategies): see §11.
+- T-temporal-3 (random-holdout master-seed inheritance): see §11.
+
+---
+
+## 19. Cross-Source Analyses (v1.4)
+
+Analyses that use the existing AI-art OOS demo projections
+(`results/projection_head/ai_art/oos_demo/`) without new compute.
+
+### 19.a A1 — Artist demographic stratification
+
+For each of 10 demographic variables in `artist_perspectives.csv`
+(`Art_practice`, `Age`, `POC`, `Gender_identity`, `Country`,
+`AI_models_familiarity`, `Used_AI_art_models`, `Professional_artist`,
+`Purchase_art`, `compensation`):
+- Build (n_levels × 20) contingency table of demographic → cluster.
+- Compute chi-square + Cramér's V.
+- Holm-Bonferroni across the 10 demographics at α=0.05.
+
+Acceptance: at least one demographic significantly associates with
+cluster assignment. If none, that itself is a finding (demographic
+uniformity in projection).
+
+### 19.b A2 — Artist-vs-public theme alignment
+
+Per theme:
+- Build artist-cluster occupancy and public-cluster occupancy
+  histograms (length 20).
+- Compute KL(artist || public) and Wasserstein-1.
+
+Descriptive; no acceptance threshold.
+
+**Caveat (pre-registered)**: public probes are theme-conditioned
+subsequence selections (round-2 audit, §11 T-OOS-provenance). The
+A2 comparison is between "artist stated concerns" and "style-controlled
+discourse passages selected to be theme-relevant" — not between two
+independent corpora.
+
+### 19.c A3 — Base-rate-corrected temporal alignment
+
+For each of 20 reference clusters:
+- `artist_density[c] = (n artist probes in c) / 1259`.
+- `corpus_year_share[c] = sum over y of (n chunks in c with year y) / 1736`.
+- `enrichment_ratio[c] = artist_density[c] / corpus_year_share[c]`.
+
+Bootstrap CI on enrichment ratios. Acceptance: count of clusters with
+lower-CI > 1 (artist-enriched) is reported with bootstrap CI; the
+2022–2024 mean-year clusters' over-representation in that set is
+reported.
+
+### 19.d Artifacts
+
+`results/projection_head/ai_art/oos_demo/cross_source/{A1,A2,A3}_*.json`
++ per-analysis smoke test
+(`tests/verification/test_ai_art_cross_source_smoke.py`).
+
+---
+
 ## 15. Changelog
+
+- **1.4 (2026-05-21)** — Added §18 (temporal holdouts: 5 AI-art × 1
+  encoder + 6 KF × 3 encoders = 23 evaluations) and §19 (cross-source
+  analyses A1/A2/A3 on existing AI-art projections). Three threats
+  to validity added to §11 (OOS-corpus provenance, consensus-K drift,
+  random-holdout seed inheritance). Set D (30 seeds,
+  master_seed=20260521) added to `seed_manifest.json`
+  (schema_version 1→2). Linear projection head specified as the §11
+  pre-registered ablation comparator. Multi-encoder ablation
+  (canonical MiniLM + mpnet 768-d + multilingual-e5-large 1024-d)
+  extended to all KF strategies (was AI-art-only in §10).
+  Authoritative source: `manuscript/proposals/2026-05-21-temporal-holdout-and-cross-source-protocol.md`.
+  Pre-registered before any compute; logged via TRACE
+  `trace_20260521_8c18e4` (evt_011 proposed-decision).
 
 - **1.3 (2026-05-14)** — Added §17 (topic-attribution evaluation,
   3-LLM cross-dataset). Pre-registered the rubric construction pipeline

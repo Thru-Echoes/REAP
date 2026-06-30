@@ -183,7 +183,8 @@ class TestExternalValidity:
 
     def test_purity_breakdown(self):
         true = np.array([0, 0, 0, 1, 1, 1])
-        pred = np.array([0, 0, 1, 1, 2, 2])  # cluster 0: 100% true-0, cluster 1: 50/50, cluster 2: 100% true-1
+        # cluster 0: 100% true-0, cluster 1: 50/50, cluster 2: 100% true-1
+        pred = np.array([0, 0, 1, 1, 2, 2])
         mean_p, per_c = compute_cluster_purity(true, pred)
         assert per_c[0] == pytest.approx(1.0)
         assert per_c[1] == pytest.approx(0.5)

@@ -3,12 +3,19 @@
 Validates that ``scripts/run_cross_source_analyses.py`` produced the three
 JSON artifacts with the expected schema and value ranges. Does not re-run
 the analyses.
+
+This is a manuscript-validation smoke test: the ``results/`` artifacts it
+checks are research outputs (gitignored; destined for the sibling
+REAP-research repo). When the artifacts are not present (e.g., the
+code-only package CI), each test SKIPS rather than failing.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
 CROSS_SOURCE_ROOT = (
@@ -17,10 +24,19 @@ CROSS_SOURCE_ROOT = (
 THEMES = ("compensation", "ownership", "threat", "transparency", "utility")
 
 
+def _load_or_skip(filename: str) -> dict:
+    """Load a cross-source result JSON, or skip if absent (research artifact)."""
+    path = CROSS_SOURCE_ROOT / filename
+    if not path.exists():
+        pytest.skip(
+            f"cross-source result not present (manuscript/research artifact, "
+            f"see REAP-research): {path}"
+        )
+    return json.loads(path.read_text())
+
+
 def test_a1_demographic_stratification_schema():
-    path = CROSS_SOURCE_ROOT / "A1_demographic_stratification.json"
-    assert path.exists(), f"missing: {path}"
-    d = json.loads(path.read_text())
+    d = _load_or_skip("A1_demographic_stratification.json")
     assert d["analysis"] == "A1_demographic_stratification"
     assert d["n_artists"] == 1259
     assert "demographics" in d and "significant_demographics" in d
@@ -34,9 +50,7 @@ def test_a1_demographic_stratification_schema():
 
 
 def test_a2_artist_vs_public_alignment_schema():
-    path = CROSS_SOURCE_ROOT / "A2_artist_vs_public_alignment.json"
-    assert path.exists(), f"missing: {path}"
-    d = json.loads(path.read_text())
+    d = _load_or_skip("A2_artist_vs_public_alignment.json")
     assert d["analysis"] == "A2_artist_vs_public_alignment"
     assert set(d["per_theme"].keys()) == set(THEMES)
     for theme in THEMES:
@@ -52,9 +66,7 @@ def test_a2_artist_vs_public_alignment_schema():
 
 
 def test_a3_baserate_temporal_schema():
-    path = CROSS_SOURCE_ROOT / "A3_baserate_temporal.json"
-    assert path.exists(), f"missing: {path}"
-    d = json.loads(path.read_text())
+    d = _load_or_skip("A3_baserate_temporal.json")
     assert d["analysis"] == "A3_baserate_temporal"
     n_clusters = d["n_clusters"]
     assert len(d["enrichment_ratio"]) == n_clusters

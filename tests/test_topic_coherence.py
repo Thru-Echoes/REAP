@@ -18,7 +18,6 @@ import pytest
 
 from reap.evaluation import compute_topic_coherence
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -148,7 +147,6 @@ class TestDispatch:
 
 def test_coherence_on_ctfidf_output() -> None:
     """Verify coherence works on actual c-TF-IDF output from labeling."""
-    from sklearn.datasets import make_blobs
 
     from reap.labeling import label_clusters_ctfidf
 

@@ -93,6 +93,22 @@ ALL_METHODS: list[str] = [
     "parametric_umap",
 ]
 
+# The six pre-registered consensus methods (evaluation_protocol §3) that
+# `run_benchmark` runs by DEFAULT. parametric_umap is excluded from the
+# default set because it requires tensorflow, which cannot share a process
+# with torch on the CI runners (transformers auto-loads both → segfault).
+# parametric_umap remains opt-in (pass methods=["parametric_umap", ...]) and
+# is run in isolation via scripts/run_parametric_umap_only.py and the
+# dedicated CI job, then merged into the comparison table.
+DEFAULT_METHODS: list[str] = [
+    "single_seed",
+    "best_of_n",
+    "naive_average",
+    "procrustes",
+    "reap",
+    "bertopic",
+]
+
 _METHOD_DESCRIPTIONS: dict[str, str] = {
     "single_seed": (
         "Independent single-seed UMAP runs; reports mean and std across seeds"
@@ -146,7 +162,10 @@ class MethodResult(BaseModel):
     # ----- Headline summary (legacy-compatible single numbers) -----
     trustworthiness: float = Field(
         ..., ge=0.0, le=1.0,
-        description="Headline trustworthiness (consensus for consensus methods, mean-of-seeds otherwise)",
+        description=(
+            "Headline trustworthiness (consensus for consensus methods, "
+            "mean-of-seeds otherwise)"
+        ),
     )
     trustworthiness_std: float = Field(
         ..., ge=0.0,
@@ -183,7 +202,10 @@ class MethodResult(BaseModel):
     )
     cell_c_silhouette: list[float] | None = Field(
         default=None,
-        description="Silhouette(consensus_labels, seed_emb_i) — 30 values usable as paired distribution",
+        description=(
+            "Silhouette(consensus_labels, seed_emb_i) — 30 values usable "
+            "as paired distribution"
+        ),
     )
 
     # ----- Consensus singletons (Cell D + singletons) -----
@@ -259,7 +281,10 @@ class BenchmarkResult(BaseModel):
     silhouette_metric: str = Field(default="euclidean")
     seeds: list[int] = Field(
         default_factory=list,
-        description="Seed list actually used (may be empty for tests that construct BenchmarkResult by hand).",
+        description=(
+            "Seed list actually used (may be empty for tests that "
+            "construct BenchmarkResult by hand)."
+        ),
     )
     methods: list[MethodResult] = Field(..., min_length=1)
 
@@ -474,7 +499,11 @@ def _compute_pairwise_agreement(
       s2c_ari_list, s2c_ami_list, s2c_nmi_list,
       s2c_ari_mean, s2c_ari_std, s2c_ami_mean, s2c_ami_std, s2c_nmi_mean, s2c_nmi_std.
     """
-    from sklearn.metrics import adjusted_mutual_info_score, adjusted_rand_score, normalized_mutual_info_score
+    from sklearn.metrics import (
+        adjusted_mutual_info_score,
+        adjusted_rand_score,
+        normalized_mutual_info_score,
+    )
 
     result: dict[str, object] = {}
 
@@ -709,11 +738,23 @@ def _run_single_seed(
     }
     if ground_truth_labels is not None and seed_labels_list:
         # Aggregate ARI/AMI/NMI vs ground truth across seeds; report means.
-        from sklearn.metrics import adjusted_mutual_info_score, adjusted_rand_score, normalized_mutual_info_score
+        from sklearn.metrics import (
+            adjusted_mutual_info_score,
+            adjusted_rand_score,
+            normalized_mutual_info_score,
+        )
 
-        ari_vs_gt = [float(adjusted_rand_score(ground_truth_labels, sl)) for sl in seed_labels_list]
-        ami_vs_gt = [float(adjusted_mutual_info_score(ground_truth_labels, sl)) for sl in seed_labels_list]
-        nmi_vs_gt = [float(normalized_mutual_info_score(ground_truth_labels, sl)) for sl in seed_labels_list]
+        ari_vs_gt = [
+            float(adjusted_rand_score(ground_truth_labels, sl)) for sl in seed_labels_list
+        ]
+        ami_vs_gt = [
+            float(adjusted_mutual_info_score(ground_truth_labels, sl))
+            for sl in seed_labels_list
+        ]
+        nmi_vs_gt = [
+            float(normalized_mutual_info_score(ground_truth_labels, sl))
+            for sl in seed_labels_list
+        ]
         ext_fields["ext_ari"] = float(np.mean(ari_vs_gt))
         ext_fields["ext_ami"] = float(np.mean(ami_vs_gt))
         ext_fields["ext_nmi"] = float(np.mean(nmi_vs_gt))
@@ -1254,7 +1295,9 @@ def run_benchmark(
         (default "cosine" for sentence embeddings).
     silhouette_metric : Metric for silhouette computation in low-d (default
         "euclidean" — correct for UMAP output per McInnes 2018).
-    methods : Subset of ALL_METHODS to run. Defaults to all.
+    methods : Subset of ALL_METHODS to run. Defaults to DEFAULT_METHODS
+        (the six pre-registered consensus methods; parametric_umap is
+        opt-in because it requires tensorflow — see DEFAULT_METHODS).
     ground_truth_labels : Optional (N,) array for external validity metrics.
     texts : Optional list of N documents for topic coherence / diversity /
         exclusivity.
@@ -1317,7 +1360,7 @@ def _run_benchmark_impl(
             f"texts length {len(texts)} != X.shape[0] {X.shape[0]}"
         )
 
-    selected = methods if methods is not None else ALL_METHODS
+    selected = methods if methods is not None else DEFAULT_METHODS
     for m in selected:
         if m not in ALL_METHODS:
             raise ValueError(f"Unknown method {m!r}. Choose from: {ALL_METHODS}")
@@ -1424,7 +1467,7 @@ def compute_subsample_ci(
             f"subsample_fraction must be in (0, 1), got {subsample_fraction}"
         )
 
-    selected = methods if methods is not None else ALL_METHODS
+    selected = methods if methods is not None else DEFAULT_METHODS
     n_samples = X.shape[0]
     subsample_size = min(
         max(

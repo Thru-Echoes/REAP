@@ -101,15 +101,23 @@ class RelatednessJudgment(BaseModel):
 
     dataset: str = Field(..., description="Dataset name")
     oos_class_or_theme: str = Field(
-        ..., description="OOS class name or theme label (e.g., 'talk.religion.misc' or 'compensation')",
+        ...,
+        description=(
+            "OOS class name or theme label "
+            "(e.g., 'talk.religion.misc' or 'compensation')"
+        ),
     )
     reference_cluster_id: int = Field(..., ge=0, description="REAP cluster id")
     reference_cluster_label: str = Field(
         ..., description="Consensus name of the reference cluster from Step A",
     )
     judge_model: str = Field(..., description="LLM model id")
-    judge_provider: Literal["openai", "anthropic-subagent"] = Field(..., description="Provider channel")
-    relatedness_score: int = Field(..., ge=0, le=2, description="0=disjoint, 1=marginal, 2=clearly_related")
+    judge_provider: Literal["openai", "anthropic-subagent"] = Field(
+        ..., description="Provider channel"
+    )
+    relatedness_score: int = Field(
+        ..., ge=0, le=2, description="0=disjoint, 1=marginal, 2=clearly_related"
+    )
     rationale: str = Field(..., description="Why the judge picked this score")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Judge's confidence")
     raw_response: str | None = Field(default=None, description="Raw model output for audit trail")

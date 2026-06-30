@@ -24,17 +24,6 @@ Benchmark + metrics entry points::
 
 __version__ = "0.1.0"
 
-from reap.benchmarks import (
-    ALL_METHODS,
-    BenchmarkArtifacts,
-    BenchmarkResult,
-    BootstrapCI,
-    MethodResult,
-    compute_bootstrap_ci,
-    compute_subsample_ci,
-    run_benchmark,
-    run_benchmark_with_artifacts,
-)
 from reap.analysis import (
     assign_by_nearest_centroid,
     compute_baserate_enrichment,
@@ -48,6 +37,17 @@ from reap.analysis import (
     compute_source_separability_silhouette,
     compute_temporal_alignment,
     compute_theme_cluster_contingency,
+)
+from reap.benchmarks import (
+    ALL_METHODS,
+    BenchmarkArtifacts,
+    BenchmarkResult,
+    BootstrapCI,
+    MethodResult,
+    compute_bootstrap_ci,
+    compute_subsample_ci,
+    run_benchmark,
+    run_benchmark_with_artifacts,
 )
 from reap.clustering import find_best_k, get_cluster_sizes, run_kmeans
 from reap.consensus import (
