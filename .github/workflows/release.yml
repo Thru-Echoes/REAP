@@ -1,23 +1,38 @@
-name: release
+name: release (PyPI publishing DISABLED)
+
+# REAP is NOT yet a publishable package. Publishing to PyPI is intentionally
+# disabled with defense in depth, so no single action can ship an artifact:
+#
+#   1. pyproject.toml carries the `Private :: Do Not Upload` classifier, so the
+#      PyPI server REJECTS any upload from any source — this workflow, a local
+#      `twine upload`, anyone.
+#   2. This workflow has NO publish step, is granted NO OIDC `id-token: write`
+#      permission, and declares NO `pypi` environment, so it cannot authenticate
+#      to PyPI even if a publish step were re-added by mistake.
+#   3. A tag push (or manual dispatch) builds + verifies the artifact and then
+#      fails the explicit "publishing disabled" guard, so a mistaken `vX.Y.Z`
+#      tag gets a clear signal instead of silently shipping (or silently doing
+#      nothing and being mistaken for a successful release).
+#
+# To RE-ENABLE publication (a deliberate, reviewed change): in ONE PR, remove the
+# `Private :: Do Not Upload` classifier from pyproject.toml AND restore the publish
+# job here (`permissions: id-token: write`, `environment: pypi`, and the
+# `pypa/gh-action-pypi-publish` step), then drop the guard below.
 
 on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  publish:
-    name: Publish to PyPI via OIDC
+  build-verify-no-publish:
+    name: Build & verify (publishing disabled — REAP is not yet publishable)
     runs-on: ubuntu-latest
-    # The "pypi" environment must be created in the GitHub repo settings and
-    # the project must be registered as a Trusted Publisher in PyPI's UI
-    # before this workflow can succeed. No API token is committed.
-    environment:
-      name: pypi
-      url: https://pypi.org/p/reap-topics
-    permissions:
-      id-token: write  # required for OIDC trusted-publishing
-      contents: read
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -28,10 +43,17 @@ jobs:
       - name: Install build tooling
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          pip install build twine
 
       - name: Build sdist and wheel
         run: python -m build
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Verify metadata
+        run: twine check dist/*
+
+      - name: Publishing is intentionally disabled
+        run: |
+          echo "::error::PyPI publishing is disabled — REAP is not yet a publishable package."
+          echo "No artifact was uploaded. PyPI also rejects uploads via the 'Private :: Do Not Upload' classifier in pyproject.toml."
+          echo "To publish: remove that classifier and restore the publish job in a reviewed PR (see this file's header)."
+          exit 1

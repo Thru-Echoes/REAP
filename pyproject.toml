@@ -22,6 +22,12 @@ keywords = [
     "nlp",
 ]
 classifiers = [
+    # PyPI rejects any upload that carries this classifier — from this repo's CI,
+    # a local `twine upload`, or anyone. REAP is NOT yet a publishable package, so
+    # this is the source-agnostic backstop against accidental publication. Remove it
+    # ONLY in the deliberate PR that makes REAP publishable (and that restores the
+    # publish job in .github/workflows/release.yml).
+    "Private :: Do Not Upload",
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",

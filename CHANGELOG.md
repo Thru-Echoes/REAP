@@ -27,8 +27,9 @@ Tracks work landing toward the first stable release (`1.0.0`).
   (mathematical invariants), Tier-2 (statistical properties), and
   Tier-3 (tolerance snapshots) checks tied to the pre-registered
   evaluation protocol.
-- GitHub Actions workflows for `test`, `typecheck`, `lint`, `build`, and
-  PyPI `release` via OIDC trusted publishing.
+- GitHub Actions workflows for `test`, `typecheck`, `lint`, `build`, and a
+  `release` workflow (build + verify only — PyPI publishing is intentionally
+  disabled until REAP is publishable; see *Changed* below).
 - Contribution-readiness files: `LICENSE` (Apache-2.0), `CHANGELOG.md`,
   `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
 
@@ -36,6 +37,12 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 - README reorganized: pitch -> install -> minimal working example ->
   links, with the longer API reference kept near the bottom.
+- Disabled PyPI publication until REAP is a publishable package. Added the
+  `Private :: Do Not Upload` classifier so the PyPI server rejects any upload
+  from any source (CI or local `twine upload`), and removed the publish step,
+  the OIDC `id-token: write` permission, and the `pypi` environment from the
+  `release` workflow — which now builds and verifies the artifact but cannot
+  publish. Re-enabling publication is a deliberate, reviewed change.
 
 ### Notes
 
