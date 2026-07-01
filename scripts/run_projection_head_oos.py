@@ -163,6 +163,7 @@ def run_for_corpus(corpus: str, set_letter: str, seed: int = 42) -> dict[str, An
         X=X,
         Y=Y,
         labels=labels,
+        seed=None,  # defer to the external _set_deterministic_seeds(seed) above
         hidden_layers=[128, 64],
         dropout=0.3,
         alpha=0.7,
