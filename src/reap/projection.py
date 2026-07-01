@@ -18,9 +18,18 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    pass
+    from collections.abc import Callable
+
+    import torch
+    from torch import nn
 
 logger = logging.getLogger(__name__)
+
+# The reporting-side metric clustering (KMeans over the projected points) uses its
+# own FIXED seed, kept separate from the model seed, so a reported metric such as
+# the ARI of those labels is deterministic regardless of which model seed produced
+# the points being clustered.
+_METRIC_KMEANS_RANDOM_STATE = 42
 
 
 def _check_torch() -> None:
@@ -37,7 +46,79 @@ def _check_torch() -> None:
         ) from None
 
 
-class ProjectionHead:
+class _BaseProjectionHead:
+    """Shared machinery for projection heads.
+
+    Handles device placement, the forward pass, train/eval modes, parameter
+    access, and save/load. A subclass builds ``self._model`` (a torch module) and
+    sets ``self.input_dim`` / ``self.output_dim`` in its ``__init__``. This base
+    holds no architecture of its own, so the MLP head and the linear head share
+    one interface and one set of behaviours.
+    """
+
+    # Set by each subclass's __init__.
+    _model: nn.Module
+    _device: torch.device
+    input_dim: int
+    output_dim: int
+
+    def to(self, device: str) -> _BaseProjectionHead:
+        """Move the model to a torch device. Returns self for chaining."""
+        import torch
+
+        self._device = torch.device(device)
+        self._model = self._model.to(self._device)
+        return self
+
+    def parameters(self):  # type: ignore[no-untyped-def]
+        """Return model parameters for an optimizer."""
+        return self._model.parameters()
+
+    def train_mode(self) -> None:
+        """Set training mode (enables dropout + batchnorm tracking, if present)."""
+        self._model.train()
+
+    def eval_mode(self) -> None:
+        """Set evaluation mode (disables dropout, uses running batchnorm stats)."""
+        self._model.eval()
+
+    def forward(self, X: np.ndarray) -> np.ndarray:
+        """Project embeddings to consensus space.
+
+        Parameters
+        ----------
+        X : (n_samples, input_dim) embeddings.
+
+        Returns
+        -------
+        (n_samples, output_dim) consensus coordinates.
+        """
+        import torch
+
+        self._model.eval()
+        with torch.no_grad():
+            tensor = torch.from_numpy(X.astype(np.float32)).to(self._device)
+            out = self._model(tensor)
+            return out.cpu().numpy()
+
+    def save(self, path: str) -> None:
+        """Save model weights to disk. Side effect: writes a file at ``path``."""
+        import torch
+
+        torch.save(self._model.state_dict(), path)
+        logger.info("Projection head saved to %s", path)
+
+    def load(self, path: str) -> None:
+        """Load model weights from disk. Side effect: mutates this model in place."""
+        import torch
+
+        state = torch.load(path, map_location=self._device, weights_only=True)
+        self._model.load_state_dict(state)
+        self._model.eval()
+        logger.info("Projection head loaded from %s", path)
+
+
+class ProjectionHead(_BaseProjectionHead):
     """MLP that maps high-d embeddings to consensus UMAP coordinates.
 
     Default architecture for 384-d → 18-d:
@@ -78,60 +159,26 @@ class ProjectionHead:
         self._model = nn.Sequential(*layers)
         self._device = torch.device("cpu")
 
-    def to(self, device: str) -> ProjectionHead:
-        """Move model to device."""
+
+class LinearProjectionHead(_BaseProjectionHead):
+    """Single affine map from input embeddings to consensus coordinates.
+
+    This is the pre-registered §11 linear baseline head: one
+    ``Linear(input_dim, output_dim)`` with no hidden layers, batchnorm, or
+    dropout. It shares the ``ProjectionHead`` interface, so
+    ``train_projection_head`` and the OOS comparison harness can build, train,
+    and evaluate it exactly as they do the MLP head.
+    """
+
+    def __init__(self, input_dim: int = 384, output_dim: int = 18) -> None:
+        _check_torch()
         import torch
+        import torch.nn as nn
 
-        self._device = torch.device(device)
-        self._model = self._model.to(self._device)
-        return self
-
-    def parameters(self):  # type: ignore[no-untyped-def]
-        """Return model parameters for optimizer."""
-        return self._model.parameters()
-
-    def train_mode(self) -> None:
-        """Set to training mode (enables dropout + batchnorm tracking)."""
-        self._model.train()
-
-    def eval_mode(self) -> None:
-        """Set to evaluation mode (disables dropout, uses running batchnorm stats)."""
-        self._model.eval()
-
-    def forward(self, X: np.ndarray) -> np.ndarray:
-        """Project embeddings to consensus space.
-
-        Parameters
-        ----------
-        X : (n_samples, input_dim) embeddings.
-
-        Returns
-        -------
-        (n_samples, output_dim) consensus coordinates.
-        """
-        import torch
-
-        self._model.eval()
-        with torch.no_grad():
-            tensor = torch.from_numpy(X.astype(np.float32)).to(self._device)
-            out = self._model(tensor)
-            return out.cpu().numpy()
-
-    def save(self, path: str) -> None:
-        """Save model weights to disk."""
-        import torch
-
-        torch.save(self._model.state_dict(), path)
-        logger.info("Projection head saved to %s", path)
-
-    def load(self, path: str) -> None:
-        """Load model weights from disk."""
-        import torch
-
-        state = torch.load(path, map_location=self._device, weights_only=True)
-        self._model.load_state_dict(state)
-        self._model.eval()
-        logger.info("Projection head loaded from %s", path)
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self._model = nn.Linear(input_dim, output_dim)
+        self._device = torch.device("cpu")
 
 
 def compute_projection_loss(
@@ -197,6 +244,8 @@ def train_projection_head(
     lr: float = 1e-3,
     weight_decay: float = 1e-4,
     device: str = "cpu",
+    seed: int = 42,
+    head_factory: Callable[[int, int], _BaseProjectionHead] | None = None,
 ) -> dict:
     """Train projection head with stratified cross-validation.
 
@@ -215,6 +264,13 @@ def train_projection_head(
     lr : Learning rate.
     weight_decay : L2 regularization.
     device : Torch device ("cpu", "cuda", "mps").
+    seed : Base random seed controlling torch weight init, per-fold shuffling, and
+        the stratified fold splits, so a fixed seed makes training reproducible.
+        The reporting-side metric clustering uses its own fixed seed, independent
+        of this one.
+    head_factory : Builds the head from (input_dim, output_dim). Defaults to the
+        MLP ProjectionHead; pass ``lambda i, o: LinearProjectionHead(i, o)`` for
+        the linear baseline.
 
     Returns
     -------
@@ -232,17 +288,24 @@ def train_projection_head(
         compute_trustworthiness,
     )
 
+    torch.manual_seed(seed)
     input_dim = X.shape[1]
     output_dim = Y.shape[1]
     hidden = hidden_layers or [128, 64]
 
-    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
+    def _default_head(in_dim: int, out_dim: int) -> _BaseProjectionHead:
+        return ProjectionHead(in_dim, out_dim, hidden, dropout)
+
+    make_head = head_factory if head_factory is not None else _default_head
+
+    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
     cv_metrics: list[dict[str, float]] = []
 
     for fold, (train_idx, val_idx) in enumerate(skf.split(X, labels)):
         logger.info("Fold %d/%d", fold + 1, n_folds)
 
-        head = ProjectionHead(input_dim, output_dim, hidden, dropout).to(device)
+        torch.manual_seed(seed + fold)
+        head = make_head(input_dim, output_dim).to(device)
         head.train_mode()
         optimizer = torch.optim.Adam(head.parameters(), lr=lr, weight_decay=weight_decay)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -303,7 +366,11 @@ def train_projection_head(
         from sklearn.metrics import adjusted_rand_score as _ari
 
         n_clusters = len(set(labels))
-        km = KMeans(n_clusters=n_clusters, random_state=42, n_init="auto")
+        km = KMeans(
+            n_clusters=n_clusters,
+            random_state=_METRIC_KMEANS_RANDOM_STATE,
+            n_init="auto",
+        )
         pred_labels = km.fit_predict(Y_pred)
 
         n_nn = min(15, len(X_val_np) - 1)
@@ -321,7 +388,8 @@ def train_projection_head(
 
     # Train final model on all data
     logger.info("Training final model on all %d samples", len(X))
-    final_head = ProjectionHead(input_dim, output_dim, hidden, dropout).to(device)
+    torch.manual_seed(seed + n_folds)
+    final_head = make_head(input_dim, output_dim).to(device)
     final_head.train_mode()
     final_optimizer = torch.optim.Adam(final_head.parameters(), lr=lr, weight_decay=weight_decay)
     final_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -375,7 +443,9 @@ def train_projection_head(
 
     n_clusters = len(set(labels))
     km_final = _KMeans(
-        n_clusters=n_clusters, random_state=42, n_init="auto"
+        n_clusters=n_clusters,
+        random_state=_METRIC_KMEANS_RANDOM_STATE,
+        n_init="auto",
     )
     pred_labels_final = km_final.fit_predict(Y_pred_final)
 
@@ -406,5 +476,6 @@ def train_projection_head(
             "patience": patience,
             "lr": lr,
             "weight_decay": weight_decay,
+            "seed": seed,
         },
     }

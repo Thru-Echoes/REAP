@@ -114,6 +114,12 @@ from reap.labeling import (
     label_clusters_llm,
     stratify_points,
 )
+from reap.projection import (
+    LinearProjectionHead,
+    ProjectionHead,
+    compute_projection_loss,
+    train_projection_head,
+)
 from reap.reporting import (
     benchmark_to_csv,
     benchmark_to_latex,
@@ -193,6 +199,11 @@ __all__ = [
     "label_clusters_llm",
     "label_clusters_combined",
     "stratify_points",
+    # Projection head (out-of-sample projection into the consensus space)
+    "ProjectionHead",
+    "LinearProjectionHead",
+    "train_projection_head",
+    "compute_projection_loss",
     # Benchmarking
     "run_benchmark",
     "run_benchmark_with_artifacts",
