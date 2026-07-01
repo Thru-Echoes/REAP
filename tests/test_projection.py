@@ -15,6 +15,7 @@ import pytest
 torch = pytest.importorskip("torch", reason="PyTorch required for projection tests")
 
 from reap.projection import (  # noqa: E402
+    LinearProjectionHead,
     ProjectionHead,
     compute_projection_loss,
     train_projection_head,
@@ -53,6 +54,53 @@ class TestProjectionHead:
         out1 = head.forward(X)
         out2 = head.forward(X)
         np.testing.assert_array_equal(out1, out2)
+
+
+class TestLinearProjectionHead:
+    """Tests for the single-layer linear projection head (the §11 linear baseline).
+
+    The linear head is a pre-registered comparison point for the MLP head: it maps
+    the input to the consensus space with one affine transform and no hidden layers.
+    """
+
+    def test_construction_records_dims(self) -> None:
+        head = LinearProjectionHead(input_dim=32, output_dim=5)
+        assert head.input_dim == 32
+        assert head.output_dim == 5
+
+    def test_forward_shape(self) -> None:
+        head = LinearProjectionHead(input_dim=32, output_dim=5)
+        X = np.random.default_rng(42).standard_normal((20, 32)).astype(np.float32)
+        assert head.forward(X).shape == (20, 5)
+
+    def test_is_a_single_affine_map(self) -> None:
+        # A linear head has exactly one weight matrix (in*out) plus one bias vector
+        # (out) — no hidden layers, batchnorm, or dropout parameters.
+        head = LinearProjectionHead(input_dim=8, output_dim=3)
+        n_params = sum(int(p.numel()) for p in head.parameters())
+        assert n_params == 8 * 3 + 3
+
+    def test_forward_is_finite(self) -> None:
+        head = LinearProjectionHead(input_dim=32, output_dim=5)
+        X = np.random.default_rng(0).standard_normal((15, 32)).astype(np.float32)
+        assert np.all(np.isfinite(head.forward(X)))
+
+    def test_eval_is_deterministic(self) -> None:
+        head = LinearProjectionHead(input_dim=32, output_dim=5)
+        X = np.random.default_rng(1).standard_normal((10, 32)).astype(np.float32)
+        np.testing.assert_array_equal(head.forward(X), head.forward(X))
+
+    def test_save_load_round_trip(self) -> None:
+        head = LinearProjectionHead(input_dim=16, output_dim=4)
+        X = np.random.default_rng(2).standard_normal((12, 16)).astype(np.float32)
+        before = head.forward(X)
+        with tempfile.NamedTemporaryFile(suffix=".pt", delete=False) as f:
+            path = f.name
+        head.save(path)
+        head2 = LinearProjectionHead(input_dim=16, output_dim=4)
+        head2.load(path)
+        np.testing.assert_array_almost_equal(before, head2.forward(X), decimal=6)
+        Path(path).unlink()
 
 
 class TestSaveLoad:
@@ -187,3 +235,92 @@ class TestTrainProjectionHead:
         model: ProjectionHead = result["model"]
         out = model.forward(X)
         assert out.shape == Y.shape
+
+
+class TestHeadFactoryAndSeed:
+    """Tests for the pluggable head factory and reproducible seeding.
+
+    train_projection_head must (a) default to the MLP head, (b) train whatever
+    head a caller supplies via head_factory, and (c) be reproducible: the same
+    seed yields the same trained model, a different seed yields a different one.
+    """
+
+    @pytest.fixture(scope="class")
+    def small_data(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        rng = np.random.default_rng(7)
+        n_samples, input_dim, output_dim = 100, 16, 4
+        X = rng.standard_normal((n_samples, input_dim)).astype(np.float32)
+        Y = rng.standard_normal((n_samples, output_dim)).astype(np.float32)
+        labels = np.array([i % 3 for i in range(n_samples)])
+        return X, Y, labels
+
+    def test_default_factory_trains_mlp_head(
+        self, small_data: tuple[np.ndarray, np.ndarray, np.ndarray]
+    ) -> None:
+        X, Y, labels = small_data
+        result = train_projection_head(
+            X, Y, labels, n_folds=2, max_epochs=3, patience=2, batch_size=32, seed=0
+        )
+        assert isinstance(result["model"], ProjectionHead)
+
+    def test_head_factory_trains_linear_head(
+        self, small_data: tuple[np.ndarray, np.ndarray, np.ndarray]
+    ) -> None:
+        X, Y, labels = small_data
+        result = train_projection_head(
+            X,
+            Y,
+            labels,
+            n_folds=2,
+            max_epochs=3,
+            patience=2,
+            batch_size=32,
+            seed=0,
+            head_factory=lambda in_dim, out_dim: LinearProjectionHead(in_dim, out_dim),
+        )
+        assert isinstance(result["model"], LinearProjectionHead)
+
+    def test_same_seed_is_reproducible(
+        self, small_data: tuple[np.ndarray, np.ndarray, np.ndarray]
+    ) -> None:
+        X, Y, labels = small_data
+        kwargs = dict(n_folds=2, max_epochs=8, patience=5, batch_size=32, seed=123)
+        r1 = train_projection_head(X, Y, labels, **kwargs)  # type: ignore[arg-type]
+        r2 = train_projection_head(X, Y, labels, **kwargs)  # type: ignore[arg-type]
+        np.testing.assert_array_equal(r1["model"].forward(X), r2["model"].forward(X))
+
+    def test_different_seed_changes_result(
+        self, small_data: tuple[np.ndarray, np.ndarray, np.ndarray]
+    ) -> None:
+        X, Y, labels = small_data
+        kwargs = dict(n_folds=2, max_epochs=8, patience=5, batch_size=32)
+        r1 = train_projection_head(X, Y, labels, seed=1, **kwargs)  # type: ignore[arg-type]
+        r2 = train_projection_head(X, Y, labels, seed=2, **kwargs)  # type: ignore[arg-type]
+        assert not np.allclose(r1["model"].forward(X), r2["model"].forward(X))
+
+    def test_config_records_seed(
+        self, small_data: tuple[np.ndarray, np.ndarray, np.ndarray]
+    ) -> None:
+        X, Y, labels = small_data
+        result = train_projection_head(
+            X, Y, labels, n_folds=2, max_epochs=3, patience=2, batch_size=32, seed=99
+        )
+        assert result["config"]["seed"] == 99
+
+
+class TestProjectionExports:
+    """The projection head is REAP's headline out-of-sample feature, so its public
+    names must be reachable from the top-level ``reap`` package, not just from the
+    submodule."""
+
+    def test_projection_names_are_public(self) -> None:
+        import reap
+
+        for name in (
+            "ProjectionHead",
+            "LinearProjectionHead",
+            "train_projection_head",
+            "compute_projection_loss",
+        ):
+            assert name in reap.__all__, f"{name} missing from reap.__all__"
+            assert hasattr(reap, name), f"{name} not importable from reap"
