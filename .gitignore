@@ -31,8 +31,10 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Claude Code (local only — not pushed to remote)
+# Claude Code / AI-agent + MCP config (local only — not pushed to remote)
 .claude/
+CLAUDE.md
+.mcp.json
 
 # Data artifacts (large files)
 *.npy
