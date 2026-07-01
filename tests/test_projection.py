@@ -307,6 +307,39 @@ class TestHeadFactoryAndSeed:
         )
         assert result["config"]["seed"] == 99
 
+    def test_seed_none_defers_to_external_torch_seed(
+        self, small_data: tuple[np.ndarray, np.ndarray, np.ndarray]
+    ) -> None:
+        # With seed=None, training must NOT reseed torch internally — it uses the
+        # global torch seed the caller set beforehand. This is the contract the
+        # pre-calibrated golden fixtures and the OOS scripts rely on: they seed
+        # torch externally and expect the result to depend on that seed. So the
+        # same external seed reproduces the result, and a different one changes it.
+        import torch
+
+        X, Y, labels = small_data
+        kwargs = dict(n_folds=2, max_epochs=8, patience=5, batch_size=32, seed=None)
+        torch.manual_seed(2024)
+        r1 = train_projection_head(X, Y, labels, **kwargs)  # type: ignore[arg-type]
+        torch.manual_seed(2024)
+        r2 = train_projection_head(X, Y, labels, **kwargs)  # type: ignore[arg-type]
+        np.testing.assert_array_equal(r1["model"].forward(X), r2["model"].forward(X))
+        torch.manual_seed(777)
+        r3 = train_projection_head(X, Y, labels, **kwargs)  # type: ignore[arg-type]
+        assert not np.allclose(r1["model"].forward(X), r3["model"].forward(X))
+
+    def test_default_is_deterministic(
+        self, small_data: tuple[np.ndarray, np.ndarray, np.ndarray]
+    ) -> None:
+        # Out of the box — no seed argument and no external torch seeding —
+        # training is reproducible: the default seed makes two independent calls
+        # produce the same model. This is the determinism-by-default contract.
+        X, Y, labels = small_data
+        kwargs = dict(n_folds=2, max_epochs=8, patience=5, batch_size=32)
+        r1 = train_projection_head(X, Y, labels, **kwargs)  # type: ignore[arg-type]
+        r2 = train_projection_head(X, Y, labels, **kwargs)  # type: ignore[arg-type]
+        np.testing.assert_array_equal(r1["model"].forward(X), r2["model"].forward(X))
+
 
 class TestProjectionExports:
     """The projection head is REAP's headline out-of-sample feature, so its public

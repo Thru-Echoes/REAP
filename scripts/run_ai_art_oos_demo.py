@@ -118,6 +118,7 @@ def _train_final_head(
         X=X_ref,
         Y=Y_ref,
         labels=labels_ref,
+        seed=None,  # defer to the external _set_deterministic_seeds(seed) above
         hidden_layers=[128, 64],
         dropout=0.3,
         alpha=0.7,

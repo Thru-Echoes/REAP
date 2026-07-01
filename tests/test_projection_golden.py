@@ -196,6 +196,7 @@ def trained_head(
         text_snap.embeddings.astype(np.float32),
         consensus_full.astype(np.float32),
         text_snap.labels,  # type: ignore[arg-type]
+        seed=None,  # defer to the external _set_torch_deterministic seed (calibrated)
         n_folds=PROJECTION_N_FOLDS,
         max_epochs=PROJECTION_MAX_EPOCHS,
         patience=PROJECTION_PATIENCE,
@@ -347,6 +348,7 @@ def _project_held_out_topic(
         X_train.astype(np.float32),
         Y_train.astype(np.float32),
         y_train,
+        seed=None,  # defer to the external _set_torch_deterministic seed (calibrated)
         n_folds=2,
         max_epochs=PROJECTION_MAX_EPOCHS,
         patience=PROJECTION_PATIENCE,

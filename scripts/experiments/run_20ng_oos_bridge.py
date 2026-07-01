@@ -149,6 +149,7 @@ def train_head(
         X=ref_X,
         Y=ref_Y,
         labels=ref_labels,
+        seed=None,  # defer to the external np.random.seed + torch.manual_seed above
     )
     final = head_result.get("final_metrics", {})
     cv = head_result.get("cv_metrics", [])

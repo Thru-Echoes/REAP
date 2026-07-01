@@ -244,7 +244,7 @@ def train_projection_head(
     lr: float = 1e-3,
     weight_decay: float = 1e-4,
     device: str = "cpu",
-    seed: int = 42,
+    seed: int | None = 42,
     head_factory: Callable[[int, int], _BaseProjectionHead] | None = None,
 ) -> dict:
     """Train projection head with stratified cross-validation.
@@ -264,10 +264,14 @@ def train_projection_head(
     lr : Learning rate.
     weight_decay : L2 regularization.
     device : Torch device ("cpu", "cuda", "mps").
-    seed : Base random seed controlling torch weight init, per-fold shuffling, and
-        the stratified fold splits, so a fixed seed makes training reproducible.
-        The reporting-side metric clustering uses its own fixed seed, independent
-        of this one.
+    seed : Base random seed (default 42). An int controls torch weight init,
+        per-fold shuffling, and the stratified fold splits, so training is
+        reproducible out of the box. Pass None to instead defer to the caller's
+        global torch seed and keep the fold splits at their fixed default — use
+        this to reproduce externally-seeded calibrations (the golden fixtures and
+        the OOS scripts seed torch themselves and pass seed=None). The
+        reporting-side metric clustering always uses its own fixed seed,
+        independent of this one.
     head_factory : Builds the head from (input_dim, output_dim). Defaults to the
         MLP ProjectionHead; pass ``lambda i, o: LinearProjectionHead(i, o)`` for
         the linear baseline.
@@ -288,7 +292,8 @@ def train_projection_head(
         compute_trustworthiness,
     )
 
-    torch.manual_seed(seed)
+    if seed is not None:
+        torch.manual_seed(seed)
     input_dim = X.shape[1]
     output_dim = Y.shape[1]
     hidden = hidden_layers or [128, 64]
@@ -298,13 +303,15 @@ def train_projection_head(
 
     make_head = head_factory if head_factory is not None else _default_head
 
-    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
+    kfold_random_state = 42 if seed is None else seed
+    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=kfold_random_state)
     cv_metrics: list[dict[str, float]] = []
 
     for fold, (train_idx, val_idx) in enumerate(skf.split(X, labels)):
         logger.info("Fold %d/%d", fold + 1, n_folds)
 
-        torch.manual_seed(seed + fold)
+        if seed is not None:
+            torch.manual_seed(seed + fold)
         head = make_head(input_dim, output_dim).to(device)
         head.train_mode()
         optimizer = torch.optim.Adam(head.parameters(), lr=lr, weight_decay=weight_decay)
@@ -388,7 +395,8 @@ def train_projection_head(
 
     # Train final model on all data
     logger.info("Training final model on all %d samples", len(X))
-    torch.manual_seed(seed + n_folds)
+    if seed is not None:
+        torch.manual_seed(seed + n_folds)
     final_head = make_head(input_dim, output_dim).to(device)
     final_head.train_mode()
     final_optimizer = torch.optim.Adam(final_head.parameters(), lr=lr, weight_decay=weight_decay)

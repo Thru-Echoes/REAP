@@ -19,7 +19,10 @@ Tracks work landing toward the first stable release (`1.0.0`).
   flagging points whose embedding falls outside the training-time
   conformal threshold.
 - Neural projection head (`src/reap/projection.py`) for mapping new
-  embeddings into the consensus space without re-running multi-seed UMAP.
+  embeddings into the consensus space without re-running multi-seed UMAP,
+  with an MLP head and a `LinearProjectionHead` (the pre-registered linear
+  baseline). Both heads, plus `train_projection_head` and
+  `compute_projection_loss`, are exported from the top-level `reap` package.
 - First-class dataset loaders under `src/reap/datasets/`:
   `load_ai_art()`, `load_korean_forest()`, `load_korean_forest_oos()`,
   with `DatasetSnapshot` / `DatasetMetadata` Pydantic v2 carriers.
@@ -35,6 +38,11 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Changed
 
+- `train_projection_head` is reproducible by default: it takes an explicit
+  `seed` (default 42) that controls weight initialization, per-fold shuffling,
+  and the stratified fold splits. Pass `seed=None` to defer to a caller-set
+  global torch seed instead — used by the calibrated golden fixtures and the
+  out-of-sample scripts, which seed torch themselves.
 - README reorganized: pitch -> install -> minimal working example ->
   links, with the longer API reference kept near the bottom.
 - Disabled PyPI publication until REAP is a publishable package. Added the
