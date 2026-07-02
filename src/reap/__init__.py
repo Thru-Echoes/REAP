@@ -114,6 +114,16 @@ from reap.labeling import (
     label_clusters_llm,
     stratify_points,
 )
+from reap.metrics_catalog import (
+    ComparisonRecord,
+    MetricRecipe,
+    MetricRecord,
+    MetricsCatalog,
+    get_catalog_recipe,
+    get_catalog_records,
+    read_metrics_catalog,
+    write_metrics_catalog,
+)
 from reap.projection import (
     LinearProjectionHead,
     ProjectionHead,
@@ -204,6 +214,15 @@ __all__ = [
     "LinearProjectionHead",
     "train_projection_head",
     "compute_projection_loss",
+    # Metrics catalog (typed registry of every metric, value, and comparison)
+    "MetricRecipe",
+    "MetricRecord",
+    "ComparisonRecord",
+    "MetricsCatalog",
+    "get_catalog_recipe",
+    "get_catalog_records",
+    "read_metrics_catalog",
+    "write_metrics_catalog",
     # Benchmarking
     "run_benchmark",
     "run_benchmark_with_artifacts",
