@@ -11,6 +11,11 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- `docs/PENDING_PROSE_CORRECTIONS.md` — tracked ledger of known-wrong numbers
+  in frozen manuscript text, each entry naming the claim's locations, the
+  correct value, and the committed artifact behind it, so nothing is silently
+  dropped when the prose freeze lifts.
+
 - BERTopic baseline pipeline wrapper for like-for-like comparison against
   the REAP consensus pipeline on identical splits, seeds, and embeddings.
 - Topic-coherence metrics (UMass, CV) computed from c-TF-IDF cluster terms
@@ -38,6 +43,13 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Changed
 
+- Removed the unverified "+32% ARI (0.75 vs. 0.56)" headline from the README
+  and the `consensus.py` docstrings. The figure came from a sibling analysis
+  under a definitionally different ARI calculation, and the README had
+  additionally attributed it to the wrong corpus; quantitative claims now
+  defer to committed benchmark artifacts. The tracked correction ledger
+  (`docs/PENDING_PROSE_CORRECTIONS.md`) records the frozen-manuscript
+  occurrences to fix at unfreeze.
 - `train_projection_head` is reproducible by default: it takes an explicit
   `seed` (default 42) that controls weight initialization, per-fold shuffling,
   and the stratified fold splits. Pass `seed=None` to defer to a caller-set
