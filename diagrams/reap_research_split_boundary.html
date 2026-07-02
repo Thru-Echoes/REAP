@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>REAP / REAP-research split — boundary and data flow</title>
+<!-- Rendered companion to the Mermaid source in docs/reap_research_split_plan_2026-07.md.
+     Self-contained apart from the mermaid CDN; print-friendly. -->
+<style>
+  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+         margin: 2rem auto; max-width: 1100px; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  p.caption { color: #444; font-size: 0.95rem; max-width: 72ch; }
+  .legend { font-size: 0.9rem; color: #333; border-left: 3px solid #888;
+            padding-left: 0.8rem; margin: 1rem 0; }
+  @media print { body { margin: 0.5in; } }
+</style>
+</head>
+<body>
+<h1>REAP / REAP-research split — boundary and data flow</h1>
+<p class="caption">
+Code, tests, drivers, and cross-cutting configuration live in <code>REAP</code>
+(the public-bound package repository). Every number-bearing artifact lands in
+<code>REAP-research</code> (private, track-by-default), written by REAP's
+drivers through a fail-closed root locator. Embedding caches enter neither
+repository. Source of truth:
+<code>docs/reap_research_split_plan_2026-07.md</code>.
+</p>
+<div class="mermaid">
+flowchart LR
+    subgraph REAP["REAP (package, public-bound)"]
+        SRC["src/reap/\n(research-agnostic)"]
+        DRV["scripts/ drivers\n+ locator (fail-closed)"]
+        TST["tests + CI"]
+        DOCS["docs/: roadmap, run matrix,\ncorrection ledger, split plan"]
+    end
+    subgraph RR["REAP-research (private)"]
+        RES["results/ + bundle.json\n(track by default)"]
+        TAB["manuscript/tables/\n+ figures/"]
+        VER["verification/ reports"]
+        AGT[".claude/: integrity rules\n+ review agents"]
+    end
+    CACHE[("~/.cache/reap/\nembedding caches")]
+    SRC --> DRV
+    DRV -- "REAP_RESEARCH_ROOT" --> RES
+    DRV --> TAB
+    CACHE --> DRV
+    DOCS -- "run matrix (expected grid)" --> RES
+    AGT -- "gate / audit / trace" --> RES
+    RES -- "aggregation (fail-closed)" --> TAB
+</div>
+<div class="legend">
+Solid arrows are data/write paths. The manuscript prose tree and the
+git-tracked pre-split results remain in REAP until the deferred Stage B
+migration; <code>MIGRATION.md</code> in REAP-research records both stages.
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+</script>
+</body>
+</html>
