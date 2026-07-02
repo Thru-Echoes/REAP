@@ -11,6 +11,14 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Metrics catalog (`src/reap/metrics_catalog.py`): frozen Pydantic models
+  binding every recorded metric value to a named recipe (the exact
+  calculation — variant, label pairing, cluster-count rule, parameters), its
+  provenance (source artifact, code commit, how strongly it is backed), and
+  its evaluation mode; paired method-vs-method comparisons carry their test,
+  corrected p-values, and effect sizes. Catalogs validate fail-closed
+  (duplicate or dangling recipe ids refuse to load) and write atomically.
+  Exported from the top-level `reap` package.
 - BERTopic baseline pipeline wrapper for like-for-like comparison against
   the REAP consensus pipeline on identical splits, seeds, and embeddings.
 - Topic-coherence metrics (UMass, CV) computed from c-TF-IDF cluster terms
