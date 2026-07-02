@@ -6,7 +6,9 @@ differing by rigid transforms. Averaging coordinates (even after Procrustes
 alignment) destroys structure. Averaging *pairwise distance matrices* is
 invariant to these transforms and preserves relational geometry.
 
-Validated: distance-matrix consensus ARI = 0.75 vs Procrustes ARI = 0.56 (+32%).
+Method comparisons against Procrustes and the other baselines run under the
+pre-registered benchmark protocol; the numbers live in committed result
+artifacts, not in docstrings.
 """
 
 from __future__ import annotations
@@ -203,7 +205,7 @@ def get_procrustes_consensus(
 ) -> np.ndarray:
     """Procrustes-align multi-seed embeddings and average coordinates.
 
-    BASELINE METHOD ONLY. Produces ARI ~0.56 vs distance-matrix ARI ~0.75.
+    BASELINE METHOD ONLY — kept as a pre-registered comparison baseline.
     Use `get_consensus_distance_matrix()` + `get_consensus_embedding()` for
     production workloads.
 

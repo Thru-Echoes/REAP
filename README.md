@@ -6,9 +6,11 @@ is invariant to UMAP's rotation/reflection ambiguity — then trains a
 neural projection head that maps new data into the consensus space
 without re-running the multi-seed pipeline. The result is a
 reproducible topic geometry suitable for downstream clustering,
-labeling, and out-of-sample inference. On the AI-art discourse corpus,
-distance-matrix consensus delivers a +32% ARI improvement over
-Procrustes consensus (0.75 vs. 0.56).
+labeling, and out-of-sample inference. Method comparisons — against
+Procrustes alignment, naive coordinate averaging, best-of-N seed
+selection, and parametric UMAP — run under a pre-registered benchmark
+protocol, and every reported number traces to a committed result
+artifact rather than living in this README.
 
 ## Installation
 
