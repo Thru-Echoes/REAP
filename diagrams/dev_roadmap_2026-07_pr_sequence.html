@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>REAP dev roadmap (July 2026) — pull-request sequence</title>
+<!-- Rendered companion to the Mermaid source in docs/dev_roadmap_2026-07.md §3.
+     Self-contained apart from the mermaid CDN; print-friendly. -->
+<style>
+  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+         margin: 2rem auto; max-width: 1100px; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  p.caption { color: #444; font-size: 0.95rem; max-width: 72ch; }
+  .legend { font-size: 0.9rem; color: #333; border-left: 3px solid #888;
+            padding-left: 0.8rem; margin: 1rem 0; }
+  @media print { body { margin: 0.5in; } }
+</style>
+</head>
+<body>
+<h1>REAP development roadmap — July 2026: pull-request sequence</h1>
+<p class="caption">
+Eleven bounded pull requests to <code>main</code>, then the experiment drivers.
+PRs 1–4 are the paperwork/integrity front (correction ledger, recipe pinning, the
+protocol v1.5 amendment, and wiring drivers to write into the REAP-research sibling
+repository); PRs 5–6 are CI and guard hardening; PRs 7–9 build the shared method infrastructure; PRs 10–11 prepare and
+run the multi-encoder re-embedding (result-blind, so its compute runs in the
+background). No Phase 3/4/5 experiment driver runs before the amendment (PR 2)
+and the research-root wiring (PR 3) land. Source of truth:
+<code>docs/dev_roadmap_2026-07.md</code> §3.
+</p>
+<div class="mermaid">
+flowchart TD
+    PR1["PR 1 (S)\ncorrection ledger + headline fix"] --> PR2
+    PR4["PR 4 (S-M)\ndistance-correlation recipe pin\n+ first verification checks"] --> PR2["PR 2 (S-M)\nprotocol v1.5 amendment\n+ run matrix (Oliver ratifies)"]
+    PR2 --> D1{{"experiments gate:\nno Phase 3/4/5 run\nbefore PR 2 + PR 3"}}
+    PR3["PR 3 (S-M)\nresearch-root locator +\ndriver wiring + guards"] --> D1
+    PR5["PR 5 (S)\nCI/packaging quick wins"]
+    PR6["PR 6 (S-M)\npyright scope\n+ syntax-tree guards"]
+    PR7["PR 7 (M)\nseed-manifest relocation +\nReproBundle + env capture +\nfail-closed aggregation"] --> PR8
+    PR2 --> PR7
+    PR8["PR 8 (S-M)\nidentity baseline +\nOOS comparison harness"] --> D1
+    PR9["PR 9 (M)\nGeneralized Procrustes +\nrotation test + rigid-residual"]
+    PR2 --> PR9
+    PR10["PR 10 (S-M)\ndataset snapshot provenance\n+ de-hardcode source paths"] --> PR11["PR 11 (M)\nmulti-encoder embedding\nbuild script"] --> C1(("background\ncompute run"))
+    D1 --> P4["Phase 4: AI-art temporal\nholdout driver (embeddings cached)"]
+    D1 --> P3["Phase 3/5: KF drivers"]
+    C1 --> P3
+    PR9 -.->|"GPA-target comparison\nrides in driver"| P4
+</div>
+<div class="legend">
+S = about one sitting; M = one to two days. Arrows are hard dependencies;
+the dotted arrow is a comparison that rides inside a later driver rather than
+blocking it. PRs with no incoming arrow can start any time.
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+</script>
+</body>
+</html>
