@@ -11,6 +11,18 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Distance-correlation recipe pinning: the reported metric
+  (`compute_distance_correlation`, Pearson r between condensed unique-pair
+  distance vectors) and the training-loss term
+  (`compute_projection_loss`, Pearson r over full flattened self-distance
+  matrices, diagonal included) are two different calculations that shared
+  one everyday name — and neither is Székely's distance correlation. They
+  are now registered as distinct recipes (`distance_correlation`,
+  `dist_corr_loss`) with from-scratch reference implementations, closed-form
+  and synthetic verification rungs pinning each recipe and their exact gap,
+  a byte-identical loss regression test (the loss numerics are
+  calibration-frozen), and docstrings that name each recipe and
+  cross-reference the other.
 - Metrics catalog (`src/reap/metrics_catalog.py`): frozen Pydantic models
   binding every recorded metric value to a named recipe (the exact
   calculation — variant, label pairing, cluster-count rule, parameters), its
