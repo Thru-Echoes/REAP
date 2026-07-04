@@ -1,8 +1,8 @@
 # REAP — Pre-Registered Evaluation Protocol
 
 **Status:** Pre-registered protocol for the REAP methods paper.
-**Version:** 1.4
-**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2) · Updated 2026-05-14 (v1.3) · Updated 2026-05-21 (v1.4; see Changelog §15).
+**Version:** 1.5
+**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2) · Updated 2026-05-14 (v1.3) · Updated 2026-05-21 (v1.4) · Updated 2026-07-04 (v1.5; see Changelog §15).
 **Binding:** All experiments whose numbers appear in the manuscript
 must follow this protocol. Any deviation requires a TRACE correction
 event (`category="correction"`, with `corrects_event_ids` linking the
@@ -400,7 +400,11 @@ For corp / presidential, deferred until labels arrive.
   dataset across the family of pairwise method comparisons (5
   comparisons of REAP vs each baseline = family of 5 tests per
   dataset × per metric of interest). FDR (Benjamini-Hochberg) reported
-  alongside as a sensitivity check.
+  alongside as a sensitivity check. This bullet defines the *core
+  methods* family only; the §18 temporal-holdout families are defined
+  once in the v1.5 amendment (clause d) and enumerated machine-readably
+  in `docs/run_matrix_v1_5.json` (AI-art: 60; Korean forest: 216),
+  recomputed in CI by `tests/test_run_matrix.py`.
 - **Between-set reliability:** report the three pairwise values
   individually (no inferential test on n=3); narrative interpretation
   ties to the within-set CIs.
@@ -484,6 +488,21 @@ addresses each:
   Master seeds for all random holdouts (T5, K2-T4, K2-T5) pre-
   registered in §18 (T5: 20260521 / 20260522 / 20260523;
   K2-T4: 20260524; K2-T5: 20260525); replicates reported.
+- **"Your random holdouts leak same-document chunks."** → v1.5 clause
+  (f): group-aware splits where document ids are recoverable; otherwise
+  a reported max-cosine leakage audit with T5 labeled "optimistic under
+  chunk-level leakage" and the temporal strategies (T1–T4) designated
+  the primary generalization evidence.
+- **"Your cross-source analyses were verified on one seed set."** →
+  Status *open* (v1.5 clause p): A1/A2/A3 reproduced on Set A only;
+  re-run on Sets B/C scheduled with the driver work.
+- **"Your A2 Wasserstein-1 treats cluster ids as ordered."** → Status
+  *accepted-limitation* (v1.5 clause p): KL is the primary divergence;
+  W1 is supplementary with the caveat stated.
+- **"Your artist probes are not independent samples."** → Status
+  *mitigated* (v1.5 clauses g, p): artist-level permutation test is the
+  primary A1 analysis; bootstrap CIs resample artists, not probes;
+  per-probe results are supporting-with-caveat only.
 
 ---
 
@@ -845,13 +864,20 @@ identity, linear_head), `comparison_metrics.json`, `bundle.json`
 
 Mean ± 95% bootstrap CI (10,000 resamples) across Set D's 30 seeds.
 Paired Wilcoxon REAP vs each baseline per metric per strategy.
-Holm-Bonferroni within each corpus (216 total paired tests). Cohen's d.
-BH-FDR as sensitivity.
+Holm-Bonferroni within each corpus — AI-art: 60 paired tests; Korean
+forest: 216 (families defined once in the v1.5 amendment clause d;
+enumeration in `docs/run_matrix_v1_5.json`). Cohen's d.
+BH-FDR as sensitivity. Random-split replicates aggregate to the
+per-seed mean before testing (v1.5 replicate rule).
 
 ### 18.h Pre-registered acceptance criteria
 
-- Per corpus: at least 3 of 6 strategies achieve trustworthiness mean
-  > 0.70 AND distance correlation mean > 0.70 on held-out.
+- AI-art: at least 3 of 5 strategies achieve trustworthiness mean
+  > 0.70 AND distance correlation mean > 0.70 on held-out; Korean
+  forest: at least 9 of 18 evaluations achieve the same (v1.5 clause a,
+  correcting the earlier "3 of 6", which matched neither corpus). These
+  are pre-registered expectations feeding claims, with the v1.5
+  clause-j null path — not paper-viability gates.
 - Per corpus: at least one strategy shows REAP significantly outperforming
   BOTH PUMAP and linear head on either trust or dist_corr at Holm-corrected
   α=0.05.
@@ -878,7 +904,10 @@ For each of 10 demographic variables in `artist_perspectives.csv`
 `Purchase_art`, `compensation`):
 - Build (n_levels × 20) contingency table of demographic → cluster.
 - Compute chi-square + Cramér's V.
-- Holm-Bonferroni across the 10 demographics at α=0.05.
+- Holm-Bonferroni across the demographics at α=0.05 — **m = 9**:
+  `Country` is constant (all-USA) in `artist_perspectives.csv` and is
+  excluded as untestable. The committed analysis code has always run 9;
+  v1.5 clause (l) records this as the overdue §13 deviation note.
 
 Acceptance: at least one demographic significantly associates with
 cluster assignment. If none, that itself is a finding (demographic
@@ -920,6 +949,38 @@ reported.
 ---
 
 ## 15. Changelog
+
+- **1.5 (2026-07-04)** — Temporal-holdout scoring rules locked before
+  any Phase 3/4/5 run. Holm families defined once (core m=5 per dataset
+  per metric; AI-art holdout m=60; Korean-forest holdout m=216; A1
+  demographics m=9 with `Country` excluded as constant — closing the
+  live §19.a m=10 deviation); full run enumeration committed as
+  `docs/run_matrix_v1_5.json` with a CI guard
+  (`tests/test_run_matrix.py`). Acceptance denominators corrected
+  (3-of-5 AI-art / 9-of-18 KF, replacing "3 of 6"); "CV mean" qualifier
+  restored and bound to the record file's evaluation mode;
+  trustworthiness designated the primary cross-method holdout metric
+  (cross-method distance correlation = training-objective-aligned,
+  supporting; head-vs-head on it stays primary); identity baseline
+  reported as a primary comparison with a pre-written null
+  interpretation; dependence-unit/leakage rule for random holdouts;
+  artist repeated-measures correction for A1 (artist-level permutation
+  primary; bootstraps resample artists); KF encoders never averaged +
+  minimum fold sizes (n ≥ 32 and n ≥ 3·K); threshold-provenance tags
+  (observed-with-headroom bars are sanity checks, not proof);
+  null/negative-result path; §12 bundle fields extended (schema +
+  protocol versions, resolved library versions, evaluation mode, run
+  status + failure reason, metric recipe ids) with a mechanical
+  protocol-version gate; the two distance-correlation calculations
+  registered as distinct recipes (`distance_correlation` condensed
+  metric vs `dist_corr_loss` full-matrix training loss — neither is
+  Székely's); Generalized Procrustes designated the headline Procrustes
+  comparator (additive; pairwise golden ranges untouched); deferred
+  analyses recorded with reasons; residual risks migrated into §11.
+  Authoritative source:
+  `docs/proposals/2026-07-protocol-v1.5-amendment.md` (lives under
+  `docs/` because new `manuscript/` files are gitignored). Ratification
+  = merge of the amendment PR; no result-generating run precedes it.
 
 - **1.4 (2026-05-21)** — Added §18 (temporal holdouts: 5 AI-art × 1
   encoder + 6 KF × 3 encoders = 23 evaluations) and §19 (cross-source
