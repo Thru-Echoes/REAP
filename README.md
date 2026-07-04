@@ -141,4 +141,4 @@ See `examples/load_real_datasets.py` for a fuller walk-through and
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

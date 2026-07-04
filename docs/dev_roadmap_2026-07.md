@@ -633,10 +633,12 @@ guaranteed reviewer question, and the library code already exists (`src/reap/abl
    branches merge.
 4. **Hye In's manuscript (time-sensitive, external):** confirm which ARI definition her
    manuscript quotes against the ladder log's recipe before she submits.
-5. **License consistency (low, whenever):** the repo ships Apache-2.0, while an earlier
-   internal licensing note listed BSD-3-Clause or MIT as the candidates pending
-   confirmation — either outcome is fine; record the choice once so the note and the repo
-   agree.
+5. **License consistency — RESOLVED 2026-07-04: MIT.** The repo relicensed from Apache-2.0
+   to MIT (LICENSE, `pyproject.toml` license field, classifier, README/CONTRIBUTING
+   references, one PR), settling the earlier note's BSD-3-Clause-or-MIT question. Open
+   follow-up: the REAP-research sibling still carries the Apache-2.0 copy from its Stage A
+   scaffold — decide whether it follows (a research-artifact repo may want a data/document
+   license instead of a code license).
 
 ---
 
