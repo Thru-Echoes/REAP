@@ -11,6 +11,16 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Fail-closed research-root locator and results write guard
+  (`scripts/research_root.py`): result-writing scripts resolve the
+  REAP-research artifact home through one shared helper (explicit flag →
+  `REAP_RESEARCH_ROOT` → the sibling checkout) and refuse to run when nothing
+  resolves — or when a provided path is invalid, so a typo can no longer
+  silently redirect results to a different tree. A write guard compares this
+  repo's gitignored `results/` tree against the Stage A import manifest by
+  SHA-256 and fails on any new or changed number-bearing file (its first live
+  run caught two stray duplicate label CSVs, since consolidated into
+  REAP-research). The metrics-catalog builder now uses the shared locator.
 - Distance-correlation recipe pinning: the reported metric
   (`compute_distance_correlation`, Pearson r between condensed unique-pair
   distance vectors) and the training-loss term

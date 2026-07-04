@@ -28,7 +28,6 @@ import argparse
 import csv
 import json
 import logging
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -41,39 +40,15 @@ from reap.metrics_catalog import (
     write_metrics_catalog,
 )
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from research_root import get_research_root  # noqa: E402  # pyright: ignore[reportMissingImports]
+
 logger = logging.getLogger(__name__)
 
 REAP_ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 
 SEED_SETS = ("A", "B", "C")
-
-
-def get_research_root(explicit: str | None = None) -> Path:
-    """Resolve the REAP-research artifact root, fail-closed.
-
-    Resolution order: explicit argument -> ``REAP_RESEARCH_ROOT`` env var ->
-    the ``../REAP-research`` sibling directory -> raise. (The shared locator
-    helper planned for the driver-wiring change will absorb this; keep the
-    resolution order identical.)
-
-    Raises
-    ------
-    RuntimeError : If no candidate resolves to an existing directory.
-    """
-    candidates: list[str | None] = [
-        explicit,
-        os.environ.get("REAP_RESEARCH_ROOT"),
-        str(REAP_ROOT_DEFAULT.parent / "REAP-research"),
-    ]
-    for cand in candidates:
-        if cand and Path(cand).is_dir():
-            return Path(cand).resolve()
-    raise RuntimeError(
-        "Cannot resolve the REAP-research artifact root: pass "
-        "--research-root, set REAP_RESEARCH_ROOT, or check out the "
-        "../REAP-research sibling. Refusing to continue without a "
-        "committed artifact home."
-    )
 
 
 def _f(cell: str | None) -> float | None:

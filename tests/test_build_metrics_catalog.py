@@ -112,11 +112,12 @@ class TestBuildCatalog:
         assert len(read_metrics_catalog(out).records) > 0
 
     def test_locator_fails_closed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        import build_metrics_catalog as bmc  # pyright: ignore[reportMissingImports]
-
         monkeypatch.delenv("REAP_RESEARCH_ROOT", raising=False)
-        # Point the sibling-directory fallback at an empty location too, so
-        # the real ../REAP-research checkout on a dev machine cannot satisfy it.
-        monkeypatch.setattr(bmc, "REAP_ROOT_DEFAULT", tmp_path / "no-repo-here")
-        with pytest.raises(RuntimeError, match="REAP_RESEARCH_ROOT"):
+        # A provided-but-invalid explicit path raises immediately, naming the
+        # flag - it must never silently fall through to the env var/sibling
+        # (shared-locator contract; full coverage in tests/test_research_root.py).
+        with pytest.raises(RuntimeError, match="research-root"):
             get_research_root(str(tmp_path / "definitely-not-there"))
+        # Nothing provided and no sibling: actionable refusal naming the env var.
+        with pytest.raises(RuntimeError, match="REAP_RESEARCH_ROOT"):
+            get_research_root(reap_root=tmp_path / "no-repo-here")
