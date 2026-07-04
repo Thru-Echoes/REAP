@@ -10,10 +10,14 @@ concurrency:
   group: golden-validation-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   golden:
     name: Tier 1+2+3 pre-registered invariants
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     env:
       KMP_DUPLICATE_LIB_OK: "TRUE"
     steps:

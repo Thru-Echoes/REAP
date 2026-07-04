@@ -357,3 +357,29 @@ class TestProjectionExports:
         ):
             assert name in reap.__all__, f"{name} missing from reap.__all__"
             assert hasattr(reap, name), f"{name} not importable from reap"
+
+
+class TestTorchInstallHint:
+    """The torch-missing error must name the real installable package."""
+
+    def test_missing_torch_hint_names_real_package(self, monkeypatch) -> None:
+        """_check_torch's ImportError points at reap-topics[projection].
+
+        The hint is what a user actually types: the distribution on PyPI is
+        ``reap-topics``, so any other name in the message sends them to a
+        package that does not exist (or worse, someone else's).
+        """
+        import builtins
+
+        from reap.projection import _check_torch
+
+        real_import = builtins.__import__
+
+        def _no_torch(name, *args, **kwargs):
+            if name == "torch":
+                raise ImportError("mocked: torch not installed")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", _no_torch)
+        with pytest.raises(ImportError, match=r"reap-topics\[projection\]"):
+            _check_torch()

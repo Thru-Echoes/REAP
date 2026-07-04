@@ -10,15 +10,21 @@ concurrency:
   group: test-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: pytest (${{ matrix.os }} / py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
+        # 3.10 = declared floor; 3.13 wheels for numba/torch verified on
+        # PyPI 2026-07-04 (numba 0.66, torch current) before adding the cell.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     env:
       KMP_DUPLICATE_LIB_OK: "TRUE"
     steps:
@@ -44,6 +50,7 @@ jobs:
   test-parametric-umap:
     name: pytest parametric-umap (isolated, no torch)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       KMP_DUPLICATE_LIB_OK: "TRUE"
     steps:

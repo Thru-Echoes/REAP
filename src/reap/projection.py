@@ -42,7 +42,7 @@ def _check_torch() -> None:
     except ImportError:
         raise ImportError(
             "PyTorch is required for the projection head. "
-            "Install with: pip install reap-embeddings[projection]"
+            "Install with: pip install reap-topics[projection]"
         ) from None
 
 
