@@ -164,10 +164,23 @@ def compute_distance_correlation(
     Y_true: np.ndarray,
     Y_pred: np.ndarray,
 ) -> float:
-    """Pearson correlation between pairwise Euclidean distances.
+    """Pearson correlation between condensed pairwise-distance vectors.
 
-    Measures how well the projection head preserves relative geometry.
-    Values > 0.9 indicate excellent geometric fidelity.
+    Registered metric recipe ``distance_correlation`` (kind: ``adapted``):
+    the Euclidean self-distances of each point set are collected once per
+    unique pair (scipy's condensed ``pdist`` form — no diagonal, no
+    double-counting), and the two condensed vectors are compared with a
+    plain Pearson correlation. Despite the everyday name, this is **not**
+    Székely's distance correlation — it is an adapted, simpler statistic
+    answering the same practical question: how well is relative geometry
+    preserved? Values > 0.9 indicate excellent geometric fidelity.
+
+    This is a different calculation from the training-loss recipe
+    ``dist_corr_loss`` in ``reap.projection.compute_projection_loss``,
+    which correlates the *full* flattened self-distance matrices (diagonal
+    zeros included, every pair counted twice). The two recipes disagree on
+    generic inputs and must never be quoted interchangeably; the exact gap
+    is pinned in ``tests/verification/test_distance_correlation_rung*``.
 
     Parameters
     ----------
@@ -176,7 +189,9 @@ def compute_distance_correlation(
 
     Returns
     -------
-    Pearson correlation coefficient in [-1, 1].
+    Pearson correlation coefficient in [-1, 1]; 0.0 when either condensed
+    distance vector is degenerate (standard deviation < 1e-12) or the
+    correlation is non-finite.
     """
     from scipy.spatial.distance import pdist
 

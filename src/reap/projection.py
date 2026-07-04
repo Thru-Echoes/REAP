@@ -186,9 +186,29 @@ def compute_projection_loss(
     Y_true: object,
     alpha: float = 0.7,
 ) -> tuple[object, dict[str, float]]:
-    """Combined MSE + distance correlation loss.
+    """Combined MSE + distance-correlation loss for projection-head training.
 
     Loss = alpha * MSE(Y_pred, Y_true) + (1 - alpha) * (1 - dist_corr(Y_pred, Y_true))
+
+    The distance-correlation term is the registered loss recipe
+    ``dist_corr_loss`` (kind: ``adapted``): a Pearson correlation over the
+    *full* flattened self-distance matrices of the two batches — diagonal
+    zeros included, every pair counted twice — computed with ``torch.cdist``.
+    Despite the everyday name it is **not** Székely's distance correlation,
+    and it is a different calculation from the reported metric recipe
+    ``distance_correlation`` (``reap.evaluation
+    .compute_distance_correlation``), which uses condensed unique-pair
+    vectors: the diagonal zeros shift the correlation, so the two recipes
+    disagree on generic inputs and must never be quoted interchangeably (the
+    exact gap is pinned in
+    ``tests/verification/test_distance_correlation_rung*``).
+
+    The loss numerics are calibration-frozen: the golden projection
+    thresholds and the OOS scripts' externally-seeded calibrations were
+    validated against exactly this op sequence, so refactors must keep it
+    byte-identical — ``tests/verification/test_dist_corr_loss_regression.py``
+    fails on any numeric change. The deferred Linux-side recalibration is
+    the only sanctioned occasion to move it.
 
     Parameters
     ----------
@@ -198,7 +218,10 @@ def compute_projection_loss(
 
     Returns
     -------
-    (loss_tensor, metrics_dict) where metrics_dict has 'mse', 'dist_corr_loss', 'total'.
+    (loss_tensor, metrics_dict) where metrics_dict has 'mse',
+    'dist_corr_loss', 'total'. The 'dist_corr_loss' entry is 1 minus the
+    full-matrix correlation (exactly 1.0 for degenerate inputs, via the
+    0.0-correlation guard).
     """
     import torch
 
