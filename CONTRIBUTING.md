@@ -111,4 +111,4 @@ you agree to abide by its terms.
 ## License
 
 By contributing, you agree that your contributions will be licensed
-under the [Apache License 2.0](LICENSE).
+under the [MIT License](LICENSE).
