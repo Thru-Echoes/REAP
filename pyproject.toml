@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "reap-topics"
 version = "0.1.0"
-description = "REAP: Reproducible Embedding via Averaged Projection — consensus-based topic modeling with stable dimensionality reduction and neural projection for out-of-sample data."
+description = "REAP: Reproducible Embeddings via Averaged Projection — consensus-based topic modeling with stable dimensionality reduction and neural projection for out-of-sample data."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

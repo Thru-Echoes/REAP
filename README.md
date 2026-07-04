@@ -1,4 +1,4 @@
-# REAP: Reproducible Embedding via Averaged Projection
+# REAP: Reproducible Embeddings via Averaged Projection
 
 [![DOI](https://zenodo.org/badge/1243726795.svg)](https://doi.org/10.5281/zenodo.21198427)
 
