@@ -1,5 +1,7 @@
 # REAP: Reproducible Embedding via Averaged Projection
 
+[![DOI](https://zenodo.org/badge/1243726795.svg)](https://doi.org/10.5281/zenodo.21198427)
+
 **REAP** stabilizes stochastic dimensionality reduction by averaging
 *pairwise distance matrices* across multi-seed UMAP runs — a step that
 is invariant to UMAP's rotation/reflection ambiguity — then trains a
