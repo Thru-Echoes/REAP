@@ -11,16 +11,16 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
-- Fail-closed research-root locator and results write guard
-  (`scripts/research_root.py`): result-writing scripts resolve the
-  REAP-research artifact home through one shared helper (explicit flag →
-  `REAP_RESEARCH_ROOT` → the sibling checkout) and refuse to run when nothing
-  resolves — or when a provided path is invalid, so a typo can no longer
-  silently redirect results to a different tree. A write guard compares this
-  repo's gitignored `results/` tree against the Stage A import manifest by
-  SHA-256 and fails on any new or changed number-bearing file (its first live
-  run caught two stray duplicate label CSVs, since consolidated into
-  REAP-research). The metrics-catalog builder now uses the shared locator.
+- Protocol v1.5 amendment draft (`docs/proposals/2026-07-protocol-v1.5-amendment.md`)
+  locking the temporal-holdout scoring rules before any experiment runs:
+  Holm multiple-comparison families defined once (AI-art 60 / Korean forest
+  216 / core 5 / demographics 9) with the full run enumeration committed as
+  `docs/run_matrix_v1_5.json` and recomputed in CI (`tests/test_run_matrix.py`);
+  corrected acceptance denominators; trustworthiness designated the primary
+  cross-method holdout metric; identity baseline reported as a primary
+  comparison; leakage and repeated-measures rules; record-file schema
+  additions with a mechanical protocol-version gate; deferred analyses and
+  residual risks recorded. Ratification happens at the amendment PR's merge.
 - Distance-correlation recipe pinning: the reported metric
   (`compute_distance_correlation`, Pearson r between condensed unique-pair
   distance vectors) and the training-loss term

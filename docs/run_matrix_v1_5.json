@@ -1,0 +1,564 @@
+{
+  "schema_version": "1.0",
+  "protocol_version": "1.5",
+  "amendment": "docs/proposals/2026-07-protocol-v1.5-amendment.md",
+  "scope": "Full pre-registered enumeration of the protocol section-18 temporal-holdout program (5 AI-art strategies x 1 encoder + 6 Korean-forest strategies x 3 encoders = 23 evaluation cells). Every paired significance test reported from this program comes from exactly these cells; the Holm families below are recomputed from this file by tests/test_run_matrix.py.",
+  "seed_set": "D",
+  "n_seeds": 30,
+  "methods": [
+    "reap_mlp",
+    "parametric_umap",
+    "identity",
+    "linear_head"
+  ],
+  "paired_baselines": [
+    "parametric_umap",
+    "identity",
+    "linear_head"
+  ],
+  "core_paired_baselines": [
+    "single_seed",
+    "best_of_n",
+    "naive_average",
+    "procrustes",
+    "bertopic"
+  ],
+  "primary_test_metrics": [
+    "trustworthiness",
+    "distance_correlation",
+    "silhouette_holdout",
+    "ari_adapted_stage10"
+  ],
+  "supporting_metrics": [
+    "source_separability_silhouette",
+    "occupancy_kl",
+    "occupancy_wasserstein1"
+  ],
+  "kf_only_supporting_metrics": [
+    "cross_encoder_procrustes_disparity"
+  ],
+  "metric_recipe_notes": {
+    "trustworthiness": "k=15, cosine (protocol section 18.e); training-independent for all methods",
+    "distance_correlation": "condensed-vector recipe (registered recipe id distance_correlation: Pearson r between condensed unique-pair distance vectors; NOT Szekely dCorr and NOT the dist_corr_loss full-matrix training-loss recipe - see v1.5 clause m)",
+    "silhouette_holdout": "silhouette of held-out projections under nearest-centroid labels",
+    "ari_adapted_stage10": "adapted Stage-10 ARI: held-out KMeans vs full-rerun KMeans on the same held-out"
+  },
+  "metric_roles": {
+    "trustworthiness": {
+      "cross_method": "primary",
+      "head_vs_head": "primary"
+    },
+    "distance_correlation": {
+      "cross_method": "training-objective-aligned, supporting",
+      "head_vs_head": "primary"
+    },
+    "silhouette_holdout": {
+      "cross_method": "supporting",
+      "head_vs_head": "supporting"
+    },
+    "ari_adapted_stage10": {
+      "cross_method": "supporting",
+      "head_vs_head": "supporting"
+    }
+  },
+  "replicate_rule": "Random-split strategies (T5, K2-T4, K2-T5) aggregate each metric across their replicates to the per-seed mean BEFORE any paired test, so every strategy contributes exactly one 30-value column per metric per method and the family sizes below are exact.",
+  "family_correction": "Holm-Bonferroni within each family; Benjamini-Hochberg FDR reported alongside as a sensitivity check (protocol section 8). Primary/supporting role marks say which comparisons carry headline claims; ALL enumerated tests are family members regardless of role.",
+  "declared_family_sizes": {
+    "ai_art_holdout": 60,
+    "korean_forest_holdout": 216,
+    "core_methods_per_dataset_per_metric": 5,
+    "a1_demographics": 9
+  },
+  "a1_demographics": [
+    "Art_practice",
+    "Age",
+    "POC",
+    "Gender_identity",
+    "AI_models_familiarity",
+    "Used_AI_art_models",
+    "Professional_artist",
+    "Purchase_art",
+    "compensation"
+  ],
+  "a1_excluded": {
+    "Country": "constant (all-USA) in artist_perspectives.csv; excluded per v1.5 clause l"
+  },
+  "cells": [
+    {
+      "cell_id": "ai_art/T1",
+      "corpus": "ai_art",
+      "strategy": "T1",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "future: hold out year in {2023, 2024, 2025} (960 of 1,736)",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "ai_art/T2",
+      "corpus": "ai_art",
+      "strategy": "T2",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "past: hold out year in {2013, 2015, 2016, 2017} (248 of 1,736)",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "ai_art/T3",
+      "corpus": "ai_art",
+      "strategy": "T3",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "single-recent: hold out year == 2025 (220 of 1,736)",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "ai_art/T4",
+      "corpus": "ai_art",
+      "strategy": "T4",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "single-mid: hold out year == 2019 (70 of 1,736)",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "ai_art/T5",
+      "corpus": "ai_art",
+      "strategy": "T5",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "random 20% stratified by year, 3 replicates",
+      "replicates": 3,
+      "master_seeds": [
+        20260521,
+        20260522,
+        20260523
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K1/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K1",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "corpus-OOS: project 1,662 external pledges into the KF reference space",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K1/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K1",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "corpus-OOS: project 1,662 external pledges into the KF reference space",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K1/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K1",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "corpus-OOS: project 1,662 external pledges into the KF reference space",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T1/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T1",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "hold out Moon reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T1/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T1",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "hold out Moon reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T1/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T1",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "hold out Moon reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T2/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T2",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "hold out Lee reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T2/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T2",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "hold out Lee reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T2/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T2",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "hold out Lee reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T3/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T3",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "hold out Park reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T3/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T3",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "hold out Park reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T3/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T3",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "hold out Park reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T4/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T4",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "random 20% stratified by president",
+      "replicates": 1,
+      "master_seeds": [
+        20260524
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T4/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T4",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "random 20% stratified by president",
+      "replicates": 1,
+      "master_seeds": [
+        20260524
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T4/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T4",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "random 20% stratified by president",
+      "replicates": 1,
+      "master_seeds": [
+        20260524
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T5/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T5",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "random 20% unstratified",
+      "replicates": 1,
+      "master_seeds": [
+        20260525
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T5/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T5",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "random 20% unstratified",
+      "replicates": 1,
+      "master_seeds": [
+        20260525
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    },
+    {
+      "cell_id": "korean_forest/K2-T5/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T5",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "random 20% unstratified",
+      "replicates": 1,
+      "master_seeds": [
+        20260525
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ]
+    }
+  ]
+}
