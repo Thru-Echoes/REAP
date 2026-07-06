@@ -1,4 +1,6 @@
-# REAP: Reproducible Embedding via Averaged Projection
+# REAP: Reproducible Embeddings via Averaged Projection
+
+[![DOI](https://zenodo.org/badge/1243726795.svg)](https://doi.org/10.5281/zenodo.21198427)
 
 **REAP** stabilizes stochastic dimensionality reduction by averaging
 *pairwise distance matrices* across multi-seed UMAP runs — a step that
@@ -141,4 +143,4 @@ See `examples/load_real_datasets.py` for a fuller walk-through and
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

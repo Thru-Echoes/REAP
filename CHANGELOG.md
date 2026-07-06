@@ -63,11 +63,21 @@ Tracks work landing toward the first stable release (`1.0.0`).
 - GitHub Actions workflows for `test`, `typecheck`, `lint`, `build`, and a
   `release` workflow (build + verify only — PyPI publishing is intentionally
   disabled until REAP is publishable; see *Changed* below).
-- Contribution-readiness files: `LICENSE` (Apache-2.0), `CHANGELOG.md`,
+- Contribution-readiness files: `LICENSE` (MIT; see *Changed*), `CHANGELOG.md`,
   `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
+- `CITATION.cff` with the canonical citation metadata for all releases
+  (author with ORCID and affiliation, MIT license, the Zenodo concept DOI,
+  and the canonical title "REAP: Reproducible Embeddings via Averaged
+  Projection"). The name expansion is now identical across the README,
+  package metadata, package docstring, and repository description
+  ("Embeddings", "Averaged" — two variants had drifted).
 
 ### Changed
 
+- Relicensed from Apache-2.0 to MIT. Pre-release, single-author history, so
+  the switch is clean; it settles the licensing note that listed MIT as a
+  candidate pending confirmation. `LICENSE`, the `pyproject.toml` license
+  field, and the trove classifier changed together.
 - Removed the unverified "+32% ARI (0.75 vs. 0.56)" headline from the README
   and the `consensus.py` docstrings. The figure came from a sibling analysis
   under a definitionally different ARI calculation, and the README had
@@ -116,5 +126,5 @@ the state at first import-able snapshot.
   umap-learn, pydantic) and optional extras for `projection`,
   `labeling`, `baselines`, `text-fixtures`, `coherence`, and `dev`.
 
-[Unreleased]: https://github.com/Thru-Echoes/reap-topics/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Thru-Echoes/reap-topics/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Thru-Echoes/REAP/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Thru-Echoes/REAP/releases/tag/v0.1.0

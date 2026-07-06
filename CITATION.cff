@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it using the metadata from this file.
+type: software
+title: "REAP: Reproducible Embeddings via Averaged Projection"
+authors:
+  - family-names: Muellerklein
+    given-names: Oliver
+    orcid: "https://orcid.org/0000-0002-5967-1314"
+    affiliation: "ESPM, UC Berkeley"
+license: MIT
+repository-code: "https://github.com/Thru-Echoes/REAP"
+doi: 10.5281/zenodo.21198427
+keywords:
+  - topic modeling
+  - consensus embedding
+  - UMAP
+  - reproducibility
+  - out-of-sample projection

@@ -5,9 +5,9 @@ build-backend = "hatchling.build"
 [project]
 name = "reap-topics"
 version = "0.1.0"
-description = "REAP: Reproducible Embedding via Averaged Projection — consensus-based topic modeling with stable dimensionality reduction and neural projection for out-of-sample data."
+description = "REAP: Reproducible Embeddings via Averaged Projection — consensus-based topic modeling with stable dimensionality reduction and neural projection for out-of-sample data."
 readme = "README.md"
-license = "Apache-2.0"
+license = "MIT"
 requires-python = ">=3.10"
 authors = [
     { name = "Oliver Muellerklein", email = "omuellerklein@berkeley.edu" },
@@ -30,7 +30,7 @@ classifiers = [
     "Private :: Do Not Upload",
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
