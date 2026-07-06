@@ -1,4 +1,4 @@
-"""REAP: Reproducible Embedding via Averaged Projection.
+"""REAP: Reproducible Embeddings via Averaged Projection.
 
 Stabilizes stochastic dimensionality reduction through distance-matrix
 consensus and neural projection. The core algorithm averages pairwise

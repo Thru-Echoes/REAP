@@ -65,6 +65,12 @@ Tracks work landing toward the first stable release (`1.0.0`).
   disabled until REAP is publishable; see *Changed* below).
 - Contribution-readiness files: `LICENSE` (MIT; see *Changed*), `CHANGELOG.md`,
   `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
+- `CITATION.cff` with the canonical citation metadata for all releases
+  (author with ORCID and affiliation, MIT license, the Zenodo concept DOI,
+  and the canonical title "REAP: Reproducible Embeddings via Averaged
+  Projection"). The name expansion is now identical across the README,
+  package metadata, package docstring, and repository description
+  ("Embeddings", "Averaged" — two variants had drifted).
 
 ### Changed
 
@@ -120,5 +126,5 @@ the state at first import-able snapshot.
   umap-learn, pydantic) and optional extras for `projection`,
   `labeling`, `baselines`, `text-fixtures`, `coherence`, and `dev`.
 
-[Unreleased]: https://github.com/Thru-Echoes/reap-topics/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Thru-Echoes/reap-topics/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Thru-Echoes/REAP/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Thru-Echoes/REAP/releases/tag/v0.1.0
