@@ -33,6 +33,17 @@ Tracks work landing toward the first stable release (`1.0.0`).
   a byte-identical loss regression test (the loss numerics are
   calibration-frozen), and docstrings that name each recipe and
   cross-reference the other.
+- CI/packaging hardening batch: `src/reap/py.typed` now ships in the wheel
+  so downstream type checkers consume the package's annotations; all five
+  PR workflows run with least-privilege `permissions: contents: read` and
+  job timeouts; the build and release workflows install the built wheel
+  into a clean venv, import it, assert `py.typed` is inside, and assert the
+  sdist carries no `manuscript/` or `results/` entries; the torch install
+  hint names the real package (`reap-topics[projection]` — it pointed at a
+  nonexistent `reap-embeddings`) with a test pinning it; the test matrix
+  covers Python 3.10–3.13 (cp313 wheels for numba/torch verified on PyPI
+  before adding the cell); the typecheck job installs the tensorflow-free
+  `[ci]` extra, keeping torch and tensorflow apart in every job.
 - Metrics catalog (`src/reap/metrics_catalog.py`): frozen Pydantic models
   binding every recorded metric value to a named recipe (the exact
   calculation — variant, label pairing, cluster-count rule, parameters), its

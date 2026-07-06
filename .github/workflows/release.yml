@@ -51,6 +51,30 @@ jobs:
       - name: Verify metadata
         run: twine check dist/*
 
+      - name: Wheel install smoke test (clean venv)
+        run: |
+          python -m venv /tmp/wheel-smoke
+          /tmp/wheel-smoke/bin/pip install --quiet dist/*.whl
+          /tmp/wheel-smoke/bin/python -c "import reap; import reap.metrics_catalog; print(reap.__doc__.splitlines()[0])"
+
+      - name: Assert py.typed ships in the wheel
+        run: |
+          python -c "
+          import glob, zipfile
+          whl = glob.glob('dist/*.whl')[0]
+          names = zipfile.ZipFile(whl).namelist()
+          assert 'reap/py.typed' in names, f'py.typed missing from {whl}'
+          print('py.typed present in', whl)
+          "
+
+      - name: Assert sdist carries no research artifacts
+        run: |
+          if tar -tzf dist/*.tar.gz | grep -E '/(manuscript|results)/'; then
+            echo "::error::sdist contains manuscript/ or results/ entries"
+            exit 1
+          fi
+          echo "sdist clean of manuscript/ and results/"
+
       - name: Publishing is intentionally disabled
         run: |
           echo "::error::PyPI publishing is disabled — REAP is not yet a publishable package."
