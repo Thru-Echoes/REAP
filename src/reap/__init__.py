@@ -137,6 +137,16 @@ from reap.reporting import (
     cross_dataset_latex,
     cross_dataset_table,
 )
+from reap.repro_bundle import (
+    CodeState,
+    EnvironmentSnapshot,
+    ReproBundle,
+    get_code_state,
+    get_environment_snapshot,
+    read_repro_bundle,
+    validate_protocol_version,
+    write_repro_bundle,
+)
 from reap.statistics import (
     BootstrapCIResult,
     FamilyComparisonResult,
@@ -223,6 +233,15 @@ __all__ = [
     "get_catalog_records",
     "read_metrics_catalog",
     "write_metrics_catalog",
+    # Reproducibility record files (bundle.json)
+    "ReproBundle",
+    "EnvironmentSnapshot",
+    "CodeState",
+    "get_environment_snapshot",
+    "get_code_state",
+    "validate_protocol_version",
+    "write_repro_bundle",
+    "read_repro_bundle",
     # Benchmarking
     "run_benchmark",
     "run_benchmark_with_artifacts",
