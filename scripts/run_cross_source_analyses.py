@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +44,11 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_ROOT = REPO_ROOT / "results"
-WAMA_SOURCE_PATH = Path.home() / "Documents/Berkeley/Research/When-Algorithms-Meet-Artists"
+# AI-art source project: REAP_AI_ART_SOURCE_PATH, else the sibling checkout.
+WAMA_SOURCE_PATH = Path(
+    os.environ.get("REAP_AI_ART_SOURCE_PATH")
+    or REPO_ROOT.parent / "When-Algorithms-Meet-Artists"
+).expanduser()
 OOS_DEMO_ROOT = RESULTS_ROOT / "projection_head" / "ai_art" / "oos_demo"
 CANONICAL_SET = "A"
 

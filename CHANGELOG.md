@@ -85,6 +85,16 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Changed
 
+- Tests and scripts no longer hardcode one machine's home-directory paths.
+  Research artifacts are found in the REAP-research sibling first and this
+  repo's `results/` second (`REAP_RESULTS_ROOT` overrides both); the AI-art and
+  Korean-forest source projects come from `REAP_AI_ART_SOURCE_PATH` /
+  `REAP_KOREAN_FOREST_SOURCE_PATH` or the sibling checkouts. The old paths had
+  gone stale when the checkouts moved, so the real-corpus verification tests
+  were silently skipping everywhere. They now run whenever a REAP-research
+  checkout is present, where a missing artifact is a failure, and skip with a
+  visible reason only on code-only checkouts such as CI. A new guard test fails
+  on any home-directory path in `src/`, `scripts/`, `tests/`, or `examples/`.
 - Relicensed from Apache-2.0 to MIT. Pre-release, single-author history, so
   the switch is clean; it settles the licensing note that listed MIT as a
   candidate pending confirmation. `LICENSE`, the `pyproject.toml` license

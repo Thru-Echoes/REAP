@@ -41,13 +41,12 @@ from statistics import fmean, pstdev
 import numpy as np
 import pytest
 from _reference_silhouette import reference_silhouette
+from _research_paths import get_artifact_path
 
 from reap.evaluation import compute_silhouette
 
 TOL = 1e-9
 CSV_TOL = 1e-6
-REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
-RESULTS_ROOT = REPO_ROOT / "results"
 
 EXPECTED_HASHES: dict[str, str] = {
     # ai_art
@@ -103,7 +102,7 @@ def _sha256_of(path: Path) -> str:
 
 
 def _load_pinned(rel: str) -> np.ndarray:
-    path = RESULTS_ROOT / rel
+    path = get_artifact_path(rel)
     actual = _sha256_of(path)
     expected = EXPECTED_HASHES[rel]
     if actual != expected:
@@ -114,7 +113,7 @@ def _load_pinned(rel: str) -> np.ndarray:
 
 
 def _read_published_silhouette(corpus: str, set_letter: str) -> dict[str, float]:
-    csv_path = RESULTS_ROOT / corpus / f"combined_set_{set_letter}" / "all_methods.csv"
+    csv_path = get_artifact_path(corpus, f"combined_set_{set_letter}", "all_methods.csv")
     with open(csv_path) as fp:
         for row in csv.DictReader(fp):
             if row.get("method") == "reap":
@@ -127,7 +126,7 @@ def _read_published_silhouette(corpus: str, set_letter: str) -> dict[str, float]
 
 def _read_per_seed_silhouettes(corpus: str, set_letter: str) -> list[float]:
     """Read the 30 per-seed silhouette_A_self values from the per_seed.csv."""
-    p = RESULTS_ROOT / corpus / "reap" / f"set_{set_letter}" / "per_seed.csv"
+    p = get_artifact_path(corpus, "reap", f"set_{set_letter}", "per_seed.csv")
     values: list[float] = []
     with open(p) as fp:
         for row in csv.DictReader(fp):
@@ -145,7 +144,7 @@ def _read_per_seed_silhouettes(corpus: str, set_letter: str) -> list[float]:
 
 @pytest.mark.parametrize("rel", list(EXPECTED_HASHES.keys()))
 def test_rung4_input_hashes_pinned(rel):
-    actual = _sha256_of(RESULTS_ROOT / rel)
+    actual = _sha256_of(get_artifact_path(rel))
     expected = EXPECTED_HASHES[rel]
     assert actual == expected, (
         f"{rel}: SHA256 drift: got {actual!r}, expected {expected!r}"

@@ -272,11 +272,9 @@ _SIBLING_ROOT = _REPO_ROOT.parent
 
 _AI_ART_FALLBACKS = [
     _SIBLING_ROOT / "When-Algorithms-Meet-Artists",
-    Path.home() / "Documents/Berkeley/Research/When-Algorithms-Meet-Artists",
 ]
 _KOREAN_FOREST_FALLBACKS = [
     _SIBLING_ROOT / "green-narrative" / "hye_in",
-    Path.home() / "Documents/Berkeley/Research/green-narrative/hye_in",
 ]
 
 

@@ -28,9 +28,20 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from _research_paths import get_artifact_path
 
-REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
-OOS_DEMO_ROOT = REPO_ROOT / "results" / "projection_head" / "ai_art" / "oos_demo"
+# Location of this module's artifacts below results/ (see tests/_research_paths.py).
+OOS_DEMO_PARTS = ("projection_head", "ai_art", "oos_demo")
+
+
+def _get_set_file(set_letter: str, name: str) -> Path:
+    """Return where one seed set's OOS-demo artifact lives on this machine.
+
+    Resolved per file, not per directory: a set's files are split between
+    REAP-research (imported artifacts) and this repository (tracked ones).
+    """
+    return get_artifact_path(*OOS_DEMO_PARTS, f"set_{set_letter}", name)
+
 SETS = ("A", "B", "C")
 
 EXPECTED_N_ARTIST = 1259
@@ -60,7 +71,7 @@ REQUIRED_PER_SOURCE_KEYS = (
 
 
 def _load_comparison(set_letter: str) -> dict:
-    path = OOS_DEMO_ROOT / f"set_{set_letter}" / "comparison_metrics.json"
+    path = get_artifact_path(*OOS_DEMO_PARTS, f"set_{set_letter}", "comparison_metrics.json")
     assert path.exists(), f"missing: {path}"
     with open(path) as fp:
         return json.load(fp)
@@ -69,7 +80,6 @@ def _load_comparison(set_letter: str) -> dict:
 @pytest.mark.parametrize("set_letter", SETS)
 def test_per_set_artifacts_exist(set_letter):
     """Every per-set output file exists with the expected name."""
-    set_dir = OOS_DEMO_ROOT / f"set_{set_letter}"
     for name in (
         "head_state_dict.pt",
         "head_config.json",
@@ -80,15 +90,15 @@ def test_per_set_artifacts_exist(set_letter):
         "comparison_metrics.json",
         "temporal_alignment.json",
     ):
-        assert (set_dir / name).exists(), f"missing artifact: {set_dir / name}"
+        path = _get_set_file(set_letter, name)
+        assert path.exists(), f"missing artifact: {path}"
 
 
 @pytest.mark.parametrize("set_letter", SETS)
 def test_projection_shapes_and_finiteness(set_letter):
     """Projected coords have the expected shape, dtype, and are finite."""
-    set_dir = OOS_DEMO_ROOT / f"set_{set_letter}"
-    artist = np.load(set_dir / "projection_artist.npy")
-    public = np.load(set_dir / "projection_public.npy")
+    artist = np.load(_get_set_file(set_letter, "projection_artist.npy"))
+    public = np.load(_get_set_file(set_letter, "projection_public.npy"))
     assert artist.shape == (EXPECTED_N_ARTIST, EXPECTED_OUTPUT_DIM)
     assert public.shape == (EXPECTED_N_PUBLIC, EXPECTED_OUTPUT_DIM)
     assert np.isfinite(artist).all()
@@ -104,9 +114,8 @@ def test_projection_shapes_and_finiteness(set_letter):
 def test_assignments_in_cluster_label_space(set_letter):
     """Probe assignments are integers in [0, K-1] for the set's effective K."""
     n_clusters = EXPECTED_N_REF_CLUSTERS_PER_SET[set_letter]
-    set_dir = OOS_DEMO_ROOT / f"set_{set_letter}"
-    artist_a = np.load(set_dir / "assignment_artist.npy")
-    public_a = np.load(set_dir / "assignment_public.npy")
+    artist_a = np.load(_get_set_file(set_letter, "assignment_artist.npy"))
+    public_a = np.load(_get_set_file(set_letter, "assignment_public.npy"))
     assert artist_a.shape == (EXPECTED_N_ARTIST,)
     assert public_a.shape == (EXPECTED_N_PUBLIC,)
     assert np.issubdtype(artist_a.dtype, np.integer)
@@ -192,9 +201,8 @@ def test_honest_sanity_floor_both_sources_share_a_cluster(set_letter):
     consensus space (zero overlap with the other source's clusters) would be
     failing OOS — fix the head, do not relax this test.
     """
-    set_dir = OOS_DEMO_ROOT / f"set_{set_letter}"
-    artist_a = np.load(set_dir / "assignment_artist.npy")
-    public_a = np.load(set_dir / "assignment_public.npy")
+    artist_a = np.load(_get_set_file(set_letter, "assignment_artist.npy"))
+    public_a = np.load(_get_set_file(set_letter, "assignment_public.npy"))
     artist_clusters = set(artist_a.tolist())
     public_clusters = set(public_a.tolist())
     shared = artist_clusters & public_clusters
@@ -209,8 +217,7 @@ def test_honest_sanity_floor_both_sources_share_a_cluster(set_letter):
 def test_temporal_alignment_schema_and_ranges(set_letter):
     """temporal_alignment.json contains per-cluster year stats + an ordering."""
     n_clusters = EXPECTED_N_REF_CLUSTERS_PER_SET[set_letter]
-    set_dir = OOS_DEMO_ROOT / f"set_{set_letter}"
-    with open(set_dir / "temporal_alignment.json") as fp:
+    with open(_get_set_file(set_letter, "temporal_alignment.json")) as fp:
         payload = json.load(fp)
     assert set(payload.keys()) == {"per_cluster", "ordering_by_mean_year"}
     assert len(payload["per_cluster"]) == n_clusters
@@ -227,7 +234,7 @@ def test_temporal_alignment_schema_and_ranges(set_letter):
 
 def test_cross_set_consistency_file():
     """cross_set_consistency.json exists and has Procrustes disparities for all 3 pairs."""
-    path = OOS_DEMO_ROOT / "cross_set_consistency.json"
+    path = get_artifact_path(*OOS_DEMO_PARTS, "cross_set_consistency.json")
     assert path.exists(), f"missing: {path}"
     with open(path) as fp:
         payload = json.load(fp)
@@ -248,7 +255,7 @@ def test_cross_set_consistency_file():
 
 def test_showcase_figure_exists():
     """The showcase scatter PNG was generated for set A."""
-    fig_path = OOS_DEMO_ROOT / "set_A" / "showcase_figure.png"
+    fig_path = get_artifact_path(*OOS_DEMO_PARTS, "set_A", "showcase_figure.png")
     assert fig_path.exists(), f"missing figure: {fig_path}"
     assert fig_path.stat().st_size > 10_000, (
         f"figure {fig_path} is suspiciously small ({fig_path.stat().st_size} bytes)"
