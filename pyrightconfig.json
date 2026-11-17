@@ -1,10 +1,16 @@
 {
     "pythonVersion": "3.10",
     "typeCheckingMode": "basic",
-    "include": ["src/reap", "tests"],
+    "include": [
+        "src/reap",
+        "tests"
+    ],
     "reportMissingImports": true,
     "reportMissingTypeStubs": false,
     "reportUnusedImport": true,
     "reportUnusedVariable": true,
-    "reportPrivateImportUsage": false
+    "reportPrivateImportUsage": false,
+    "extraPaths": [
+        "scripts"
+    ]
 }
