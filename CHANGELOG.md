@@ -11,6 +11,29 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Fail-closed hold-out aggregator (`scripts/aggregate_holdout_results.py`).
+  It combines every in-scope cell under the protocol v1.6 aggregation
+  rules: two-sided paired Wilcoxon tests by seed (replicates averaged per
+  seed; identity tested against its single value), mean paired differences,
+  paired Cohen's d_z, 95% seed-bootstrap intervals, and Holm within each
+  registered family with Benjamini-Hochberg alongside. A missing, failed,
+  uncommitted-code, or extra run stops it with the list of problems. An
+  untestable comparison stays in its family with p = 1, so family sizes
+  always equal the registered sizes. It also evaluates the acceptance
+  expectations. `--status` writes the accounting table: every registered
+  cell marked completed, failed, pending, or deferred with its reason.
+
+- Hold-out cell driver (`scripts/run_holdout_cell.py`): runs one in-scope
+  cell of `docs/run_matrix_v1_6.json` end to end. It builds the split as
+  protocol v1.6 clause (e) fixes it, the in-set consensus from the 30 Set D
+  seeds, K, and the adapted-ARI reference partition, then runs the hold-out
+  harness, the subsample intervals, and the leakage audit. Every artifact
+  and a `bundle.json` record go to the research root. It refuses deferred
+  cells, protocols older than 1.6, code not yet on `origin/main` or with
+  uncommitted changes, and output directories that already hold a completed
+  result. A crash still leaves a failed record. `--preflight` reports split
+  sizes, groups on both sides and leakage without training.
+
 - Protocol v1.6 amendment draft (`docs/proposals/2026-11-protocol-v1.6-amendment.md`),
   written before any hold-out run. It runs 11 of the 23 registered hold-out
   evaluations first (AI-art T1–T5; Korean forest K1 and K2-T1…T5 on the
@@ -22,6 +45,51 @@ Tracks work landing toward the first stable release (`1.0.0`).
   distance correlation. `docs/run_matrix_v1_6.json` marks every cell in
   scope or deferred, and `tests/test_run_matrix_v1_6.py` recomputes the
   families from it. The v1.5 matrix is kept unchanged.
+- Versioned record file for results (`src/reap/repro_bundle.py`, exported
+  from `reap`). `ReproBundle` is a frozen, strict model of `bundle.json`:
+  protocol version, code commit plus whether tracked files had uncommitted
+  changes, script, run id, dataset and its SHA-256, seed set and the exact
+  seeds, full settings, evaluation mode (`cv` / `final_fit` / `holdout`),
+  metric recipe ids, the numerical environment (versions of numpy, scipy,
+  scikit-learn, umap-learn, pynndescent, numba and torch, plus the BLAS and
+  LAPACK libraries numpy was built with), and run status with a required
+  failure reason for failed runs. Unknown, missing, or inconsistent fields
+  fail on both write and read. `write_repro_bundle` writes atomically through
+  a uniquely named temporary file. `validate_protocol_version` is the gate
+  that drivers and the aggregation step use to refuse a protocol older than
+  the one in force.
+- Hold-out comparison harness (`reap.holdout`, main names exported from
+  `reap`). For one hold-out split, `run_holdout_comparison` trains the REAP
+  MLP head, the linear head and parametric UMAP once per training seed against
+  the one in-set consensus, runs the identity baseline once, and scores every
+  run on the four registered hold-out metrics with their recipes spelled out:
+  trustworthiness and distance correlation between raw and placed held-out
+  documents, silhouette under nearest-centroid labels, and the adapted ARI
+  against a supplied reference partition. Held-out sets below the protocol's
+  size floors get no numbers, and an undefined metric is recorded as missing
+  with a reason, never as a sentinel value. `get_paired_subsample_intervals`
+  gives the pre-designated generalization intervals.
+- `reap.baselines.run_parametric_umap_holdout`: fits parametric UMAP on the
+  in-set documents only and passes held-out documents through the fitted
+  encoder, which the hold-out comparisons need.
+
+- Identity hold-out baseline (`reap.baselines.get_identity_projection`): each
+  new document takes the reference-map coordinate of its nearest reference
+  document in the original embedding space (cosine by default, exact search,
+  ties to the lowest index, no randomness). It is the pre-registered
+  "just copy your nearest neighbour" floor for the hold-out evaluations, and
+  its result also reports each new document's similarity to that neighbour,
+  which the random-split leakage audit needs.
+- Raw Korean-forest pledge embeddings (`reap.datasets.load_korean_forest_oos_raw`,
+  built with `scripts/build_datasets.py --dataset korean_forest_oos_raw`). The
+  existing pledge snapshot holds only the 18-d output of an earlier projection
+  head; the corpus-level hold-out evaluation needs the 1,662 pledges as raw
+  384-d MiniLM embeddings in the same space as the reference corpus. They are
+  read as the source pipeline stored them, not re-embedded, row-aligned with
+  `load_korean_forest_oos()` (the build refuses otherwise). Re-encoding the
+  pledge text with the same model reproduces 1,661 of 1,662 vectors to float
+  precision; that check and the difference in how reference and pledge text
+  were preprocessed are recorded in the snapshot metadata.
 
 - Protocol v1.5 amendment draft (`docs/proposals/2026-07-protocol-v1.5-amendment.md`)
   locking the temporal-holdout scoring rules before any experiment runs:
