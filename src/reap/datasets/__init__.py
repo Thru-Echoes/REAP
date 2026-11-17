@@ -58,6 +58,10 @@ from reap.datasets.korean_forest_oos import (
     build_korean_forest_oos_snapshot,
     load_korean_forest_oos,
 )
+from reap.datasets.korean_forest_oos_raw import (
+    build_korean_forest_oos_raw_snapshot,
+    load_korean_forest_oos_raw,
+)
 from reap.datasets.synthetic import load_golden_blobs, load_synthetic_blobs
 from reap.datasets.twenty_newsgroups import (
     GOLDEN_20NG_CLASSES,
@@ -98,6 +102,8 @@ __all__ = [
     "build_korean_forest_snapshot",
     "load_korean_forest_oos",
     "build_korean_forest_oos_snapshot",
+    "load_korean_forest_oos_raw",
+    "build_korean_forest_oos_raw_snapshot",
     "KoreanForestOOSSnapshot",
     # 20-Newsgroups manuscript validation pair (in-distribution + OOS)
     "load_twenty_newsgroups_reference",

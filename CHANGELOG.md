@@ -57,6 +57,16 @@ Tracks work landing toward the first stable release (`1.0.0`).
   "just copy your nearest neighbour" floor for the hold-out evaluations, and
   its result also reports each new document's similarity to that neighbour,
   which the random-split leakage audit needs.
+- Raw Korean-forest pledge embeddings (`reap.datasets.load_korean_forest_oos_raw`,
+  built with `scripts/build_datasets.py --dataset korean_forest_oos_raw`). The
+  existing pledge snapshot holds only the 18-d output of an earlier projection
+  head; the corpus-level hold-out evaluation needs the 1,662 pledges as raw
+  384-d MiniLM embeddings in the same space as the reference corpus. They are
+  read as the source pipeline stored them, not re-embedded, row-aligned with
+  `load_korean_forest_oos()` (the build refuses otherwise). Re-encoding the
+  pledge text with the same model reproduces 1,661 of 1,662 vectors to float
+  precision; that check and the difference in how reference and pledge text
+  were preprocessed are recorded in the snapshot metadata.
 
 - Protocol v1.5 amendment draft (`docs/proposals/2026-07-protocol-v1.5-amendment.md`)
   locking the temporal-holdout scoring rules before any experiment runs:

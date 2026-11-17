@@ -41,6 +41,7 @@ from pathlib import Path
 from reap.datasets.ai_art import build_ai_art_snapshot
 from reap.datasets.ai_art_oos import build_ai_art_oos_snapshot
 from reap.datasets.korean_forest import build_korean_forest_snapshot
+from reap.datasets.korean_forest_oos_raw import build_korean_forest_oos_raw_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ _BUILDERS = {
     "ai_art": build_ai_art_snapshot,
     "ai_art_oos": build_ai_art_oos_snapshot,
     "korean_forest": build_korean_forest_snapshot,
+    "korean_forest_oos_raw": build_korean_forest_oos_raw_snapshot,
 }
 
 
