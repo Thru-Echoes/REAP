@@ -13,20 +13,19 @@ code-only package CI), each test SKIPS rather than failing.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
+from _research_paths import get_artifact_path
 
-REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
-CROSS_SOURCE_ROOT = (
-    REPO_ROOT / "results" / "projection_head" / "ai_art" / "oos_demo" / "cross_source"
-)
+# Location of this module's artifacts below results/ (see tests/_research_paths.py).
+CROSS_SOURCE_PARTS = ("projection_head", "ai_art", "oos_demo", "cross_source")
+
 THEMES = ("compensation", "ownership", "threat", "transparency", "utility")
 
 
 def _load_or_skip(filename: str) -> dict:
     """Load a cross-source result JSON, or skip if absent (research artifact)."""
-    path = CROSS_SOURCE_ROOT / filename
+    path = get_artifact_path(*CROSS_SOURCE_PARTS, filename)
     if not path.exists():
         pytest.skip(
             f"cross-source result not present (manuscript/research artifact, "

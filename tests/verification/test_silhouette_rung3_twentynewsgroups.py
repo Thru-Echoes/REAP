@@ -29,13 +29,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 from _reference_silhouette import reference_silhouette
+from _research_paths import get_artifact_path
 
 from reap.evaluation import compute_silhouette
 
+# Location of this module's artifacts below results/ (see tests/_research_paths.py).
+TWENTY_NG_PARTS = ("twenty_newsgroups_reference",)
+
 TOL = 1e-9
 CSV_TOL = 1e-6
-REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
-RESULTS_ROOT = REPO_ROOT / "results" / "twenty_newsgroups_reference"
 
 EXPECTED_HASHES: dict[str, str] = {
     "reap/set_A/consensus_embedding.npy": (
@@ -68,7 +70,7 @@ def _sha256_of(path: Path) -> str:
 
 
 def _load_pinned(rel: str) -> np.ndarray:
-    path = RESULTS_ROOT / rel
+    path = get_artifact_path(*TWENTY_NG_PARTS, rel)
     actual = _sha256_of(path)
     expected = EXPECTED_HASHES[rel]
     if actual != expected:
@@ -79,7 +81,7 @@ def _load_pinned(rel: str) -> np.ndarray:
 
 
 def _read_published_silhouette(set_letter: str) -> dict[str, float]:
-    csv_path = RESULTS_ROOT / f"combined_set_{set_letter}" / "all_methods.csv"
+    csv_path = get_artifact_path(*TWENTY_NG_PARTS, f"combined_set_{set_letter}", "all_methods.csv")
     with open(csv_path) as fp:
         for row in csv.DictReader(fp):
             if row.get("method") == "reap":
@@ -98,7 +100,7 @@ def _read_published_silhouette(set_letter: str) -> dict[str, float]:
 @pytest.mark.parametrize("rel", list(EXPECTED_HASHES.keys()))
 def test_rung3_input_hashes_pinned(rel):
     """Every silhouette input file's SHA256 matches the pinned value."""
-    actual = _sha256_of(RESULTS_ROOT / rel)
+    actual = _sha256_of(get_artifact_path(*TWENTY_NG_PARTS, rel))
     expected = EXPECTED_HASHES[rel]
     assert actual == expected, (
         f"{rel}: SHA256 drift detected: got {actual!r}, expected {expected!r}"

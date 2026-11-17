@@ -3,8 +3,12 @@
 REAP's dataset cache (``~/.cache/reap/datasets/``) is built from two
 external research projects via ``scripts/build_datasets.py``:
 
-* AI-art: ``~/Documents/Berkeley/Research/When-Algorithms-Meet-Artists``
-* Korean forest: ``~/Documents/Berkeley/Research/green-narrative/hye_in``
+* AI-art: When-Algorithms-Meet-Artists (``REAP_AI_ART_SOURCE_PATH``, else the
+  ``../When-Algorithms-Meet-Artists`` sibling checkout)
+* Korean forest: green-narrative/hye_in (``REAP_KOREAN_FOREST_SOURCE_PATH``, else
+  the ``../green-narrative/hye_in`` sibling checkout)
+
+Resolution lives in ``tests/_research_paths.py``.
 
 This module is the explicit, audited check that **the cached arrays we
 analyze match the source files in those sibling repos byte-for-byte**
@@ -40,14 +44,15 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from _research_paths import get_ai_art_source_root, get_korean_forest_source_root
 
-WAMA_ROOT = Path.home() / "Documents/Berkeley/Research/When-Algorithms-Meet-Artists"
-HYEIN_ROOT = Path.home() / "Documents/Berkeley/Research/green-narrative/hye_in"
+WAMA_ROOT = get_ai_art_source_root()
+HYEIN_ROOT = get_korean_forest_source_root()
 CACHE_ROOT = Path.home() / ".cache/reap/datasets"
 
 
 def _require_sibling(root: Path) -> None:
-    """Skip the test if the sibling repo isn't checked out at the expected path."""
+    """Skip the test if the source project is not present on this machine."""
     if not root.is_dir():
         pytest.skip(f"sibling repo not present at {root}")
 

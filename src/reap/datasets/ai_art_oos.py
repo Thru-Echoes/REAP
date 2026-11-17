@@ -48,7 +48,7 @@ Building the cache (one-time)::
 
     python scripts/build_datasets.py \\
         --dataset ai_art_oos \\
-        --source-path ~/Documents/Berkeley/Research/When-Algorithms-Meet-Artists
+        --source-path ../When-Algorithms-Meet-Artists
 """
 
 from __future__ import annotations

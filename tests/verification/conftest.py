@@ -2,40 +2,29 @@
 
 Several verification modules validate *research-output artifacts* — model
 state dicts, consensus embeddings/labels, and published metric CSVs under
-``results/``. Per the repository policy (see the root ``.gitignore``), that
-material is gitignored here and is being separated into the sibling
-``REAP-research`` repo, so it is absent in the code-only package CI.
+``results/``. Most of that material is not tracked in this package
+repository: the committed copies live in the sibling ``REAP-research``
+repository (see ``docs/reap_research_split_plan_2026-07.md``). The modules
+find each artifact through ``tests/_research_paths.get_artifact_path``, which
+searches REAP-research first and this repository's ``results/`` second, with
+``REAP_RESULTS_ROOT`` as a single explicit override.
 
-The artifact-dependent modules reference those outputs through a hardcoded
-absolute results root (the author's research-machine path). That path is
-absent off that machine — notably in the code-only package CI, and also note
-that the binary artifacts themselves, e.g. ``head_state_dict.pt`` and the
-``*.npy``/``*.csv`` outputs, are not tracked in git. So when that results root
-is not present, the artifact-dependent modules listed below are skipped — the
-package's own code tests and the self-contained synthetic ladder rungs
-(rung0/1/2) still run. On the research machine (or the sibling REAP-research
-repo) the artifacts are present and these tests run normally. Override the
-results root with the ``REAP_RESULTS_ROOT`` environment variable.
+Skip rule: the artifact-dependent modules listed below run whenever this
+machine has research artifacts (``REAP_RESULTS_ROOT`` is set, or a
+REAP-research checkout resolves through ``REAP_RESEARCH_ROOT`` or the
+``../REAP-research`` sibling). There, a missing artifact is a test failure,
+not a skip. On a code-only checkout — notably package CI — they are skipped
+with a visible reason; the package's own code tests and the self-contained
+synthetic ladder rungs (rung0/1/2) still run.
 
-This mirrors the hardcoded path the artifact modules use; it is transitional
-until that research material moves to the sibling repo and these modules move
-with it (see the root ``.gitignore``).
-
-Side effects: reads the ``REAP_RESULTS_ROOT`` env var and the filesystem to
-decide whether the artifact root exists.
+Side effects: reads environment variables and the filesystem to decide
+whether research artifacts are available.
 """
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import pytest
-
-# Must match the hardcoded ``REPO_ROOT / "results"`` used by the artifact
-# modules; absent off the research machine (e.g. in CI), which is the skip signal.
-_DEFAULT_RESULTS_ROOT = "/Users/echoes/Documents/Berkeley/Research/REAP/results"
-_RESULTS_ROOT = Path(os.environ.get("REAP_RESULTS_ROOT", _DEFAULT_RESULTS_ROOT))
+from _research_paths import get_results_roots, has_research_artifacts
 
 # Verification modules whose tests load artifacts under results/. Kept explicit
 # (not pattern-matched) so a new self-contained verification module is never
@@ -55,17 +44,18 @@ _ARTIFACT_DEPENDENT_MODULES = frozenset(
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Skip artifact-dependent verification modules when ``results/`` is absent.
+    """Skip artifact-dependent verification modules on a code-only checkout.
 
     Side effect: adds a skip marker, in place, to each collected item that
-    belongs to an artifact-dependent module when the artifact root is missing.
+    belongs to an artifact-dependent module when no research artifacts are available.
     """
-    if _RESULTS_ROOT.exists():
+    if has_research_artifacts():
         return
     skip_marker = pytest.mark.skip(
         reason=(
-            f"research-output artifacts not present at {_RESULTS_ROOT} — they live in "
-            "the sibling REAP-research repo and are absent in code-only CI"
+            "research-output artifacts not available: no REAP-research checkout "
+            "(set REAP_RESEARCH_ROOT or check out ../REAP-research) and no "
+            f"REAP_RESULTS_ROOT; searched {[str(root) for root in get_results_roots()]}"
         )
     )
     for item in items:

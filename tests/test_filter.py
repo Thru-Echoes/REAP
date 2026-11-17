@@ -24,11 +24,11 @@ Covers:
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+from _research_paths import get_korean_forest_source_root
 
 from reap.filter import (
     FilterCalibration,
@@ -41,16 +41,12 @@ from reap.filter import (
 # Fixtures
 # --------------------------------------------------------------------------
 
-# Sibling-project artifact paths. Tests that depend on these skip cleanly
-# when the green-narrative project is not on disk (CI machines etc.).
-_GN_REF_CSV = Path(
-    "/Users/echoes/Documents/Berkeley/Research/green-narrative/hye_in/"
-    "for_hyein/embeddings6_projected.csv"
-)
-_GN_OOS_DIR = Path(
-    "/Users/echoes/Documents/Berkeley/Research/green-narrative/hye_in/"
-    "data_may7_2026/projections"
-)
+# Korean-forest source-project artifacts (green-narrative/hye_in, located via
+# tests/_research_paths.py). Tests that depend on these skip cleanly when the
+# project is not on disk (CI machines etc.).
+_GN_ROOT = get_korean_forest_source_root()
+_GN_REF_CSV = _GN_ROOT / "for_hyein" / "embeddings6_projected.csv"
+_GN_OOS_DIR = _GN_ROOT / "data_may7_2026" / "projections"
 _DIMS = [f"D{i}" for i in range(1, 19)]
 
 

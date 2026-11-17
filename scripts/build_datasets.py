@@ -11,20 +11,20 @@ Build the Korean forest snapshot from the hye_in project::
 
     python scripts/build_datasets.py \\
         --dataset korean_forest \\
-        --source-path ~/Documents/Berkeley/Research/green-narrative/hye_in
+        --source-path ../green-narrative/hye_in
 
 Build the AI-art snapshot::
 
     python scripts/build_datasets.py \\
         --dataset ai_art \\
-        --source-path ~/Documents/Berkeley/Research/When-Algorithms-Meet-Artists
+        --source-path ../When-Algorithms-Meet-Artists
 
 Build both in one go (requires both ``--ai-art-source`` and
 ``--korean-forest-source``)::
 
     python scripts/build_datasets.py --all \\
-        --ai-art-source ~/Documents/Berkeley/Research/When-Algorithms-Meet-Artists \\
-        --korean-forest-source ~/Documents/Berkeley/Research/green-narrative/hye_in
+        --ai-art-source ../When-Algorithms-Meet-Artists \\
+        --korean-forest-source ../green-narrative/hye_in
 
 Side effects
 ------------
@@ -41,6 +41,7 @@ from pathlib import Path
 from reap.datasets.ai_art import build_ai_art_snapshot
 from reap.datasets.ai_art_oos import build_ai_art_oos_snapshot
 from reap.datasets.korean_forest import build_korean_forest_snapshot
+from reap.datasets.korean_forest_oos_raw import build_korean_forest_oos_raw_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ _BUILDERS = {
     "ai_art": build_ai_art_snapshot,
     "ai_art_oos": build_ai_art_oos_snapshot,
     "korean_forest": build_korean_forest_snapshot,
+    "korean_forest_oos_raw": build_korean_forest_oos_raw_snapshot,
 }
 
 
