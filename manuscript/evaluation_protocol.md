@@ -1,8 +1,8 @@
 # REAP — Pre-Registered Evaluation Protocol
 
 **Status:** Pre-registered protocol for the REAP methods paper.
-**Version:** 1.5
-**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2) · Updated 2026-05-14 (v1.3) · Updated 2026-05-21 (v1.4) · Updated 2026-07-04 (v1.5; see Changelog §15).
+**Version:** 1.6
+**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2) · Updated 2026-05-14 (v1.3) · Updated 2026-05-21 (v1.4) · Updated 2026-07-04 (v1.5) · Updated 2026-11-16 (v1.6; see Changelog §15).
 **Binding:** All experiments whose numbers appear in the manuscript
 must follow this protocol. Any deviation requires a TRACE correction
 event (`category="correction"`, with `corrects_event_ids` linking the
@@ -404,7 +404,18 @@ For corp / presidential, deferred until labels arrive.
   methods* family only; the §18 temporal-holdout families are defined
   once in the v1.5 amendment (clause d) and enumerated machine-readably
   in `docs/run_matrix_v1_5.json` (AI-art: 60; Korean forest: 216),
-  recomputed in CI by `tests/test_run_matrix.py`.
+  recomputed in CI by `tests/test_run_matrix.py`. v1.6 narrows the
+  Korean-forest holdout family to its 6 in-scope cells (72 tests) and
+  places the 12 deferred cells in their own family (144); see
+  `docs/run_matrix_v1_6.json`.
+- **Per-seed unit for §18 paired tests (v1.6 clause b):** one consensus per
+  evaluation; each trained method (REAP MLP head, linear head, parametric
+  UMAP) is trained 30 times, run *i* seeded with Set D seed *i*, and paired
+  with the other methods by seed index. The deterministic identity baseline
+  is tested on d_i = REAP run *i* − identity value. These tests measure
+  training run-to-run variation, not generalization; generalization
+  uncertainty is a separate paired resampling interval over held-out
+  documents (v1.6 clause b, item 6), outside every Holm family.
 - **Between-set reliability:** report the three pairwise values
   individually (no inferential test on n=3); narrative interpretation
   ties to the within-set CIs.
@@ -804,6 +815,13 @@ Eleven temporal-holdout experiments + one corpus-OOS evaluation,
 spread across AI-art (5 strategies × 1 encoder) and Korean forest
 (6 strategies × 3 encoders = 18 evaluations).
 
+**Run scope (v1.6 clause a):** 11 evaluations run first — AI-art T1–T5 and
+Korean forest K1, K2-T1…T5 on the canonical MiniLM encoder. The 12
+Korean-forest evaluations on the mpnet and multilingual-e5 encoders are
+deferred (embeddings not built; no encoder-robustness claim) and are
+reported as "deferred", never silently absent. The cross-encoder
+Procrustes disparity metric (§18.e) is deferred with them.
+
 ### 18.b AI-art strategies (5)
 
 - **T1 future**: hold out year ∈ {2023, 2024, 2025} (960 of 1,736).
@@ -865,8 +883,10 @@ identity, linear_head), `comparison_metrics.json`, `bundle.json`
 Mean ± 95% bootstrap CI (10,000 resamples) across Set D's 30 seeds.
 Paired Wilcoxon REAP vs each baseline per metric per strategy.
 Holm-Bonferroni within each corpus — AI-art: 60 paired tests; Korean
-forest: 216 (families defined once in the v1.5 amendment clause d;
-enumeration in `docs/run_matrix_v1_5.json`). Cohen's d.
+forest: 72 over the in-scope cells, with the deferred cells forming their
+own 144-test family if run (v1.6 clause a; v1.5 clause d defined the
+families; enumeration in `docs/run_matrix_v1_6.json`). Per-seed unit: §8
+and v1.6 clause b. Cohen's d.
 BH-FDR as sensitivity. Random-split replicates aggregate to the
 per-seed mean before testing (v1.5 replicate rule).
 
@@ -874,13 +894,16 @@ per-seed mean before testing (v1.5 replicate rule).
 
 - AI-art: at least 3 of 5 strategies achieve trustworthiness mean
   > 0.70 AND distance correlation mean > 0.70 on held-out; Korean
-  forest: at least 9 of 18 evaluations achieve the same (v1.5 clause a,
-  correcting the earlier "3 of 6", which matched neither corpus). These
+  forest: at least 3 of the 6 in-scope evaluations achieve the same
+  (v1.6 clause a; v1.5 clause a had set 9 of 18 before the scope was
+  narrowed, correcting the earlier "3 of 6", which matched neither corpus). These
   are pre-registered expectations feeding claims, with the v1.5
   clause-j null path — not paper-viability gates.
-- Per corpus: at least one strategy shows REAP significantly outperforming
-  BOTH PUMAP and linear head on either trust or dist_corr at Holm-corrected
-  α=0.05.
+- Per corpus: at least one in-scope strategy shows REAP significantly
+  outperforming PUMAP on trustworthiness, and the linear head on
+  trustworthiness or distance correlation, at Holm-corrected α=0.05
+  (v1.6 clause c: a cross-method win on distance correlation does not
+  count, because REAP's heads train on a variant of it).
 - K1 corpus-OOS trustworthiness > 0.65 (lower than within-corpus floor).
 
 ### 18.i Threats (incremental to §11)
@@ -949,6 +972,22 @@ reported.
 ---
 
 ## 15. Changelog
+
+- **1.6 (2026-11-16)** — Hold-out scope and per-seed unit fixed before any
+  §18 run. 11 of 23 evaluations in scope (AI-art T1–T5; Korean forest K1,
+  K2-T1…T5 on the canonical encoder); the 12 non-canonical-encoder
+  Korean-forest evaluations and the cross-encoder metric deferred, with the
+  deferred cells as a separate 144-test family (in-scope KF family 72;
+  AI-art 60 unchanged); KF acceptance 3 of 6. The "30 per-seed values" are
+  30 training runs per trained method against one consensus, paired by
+  seed index, with the identity baseline tested against its single value;
+  a separate paired 80%-subsample interval over held-out documents (run 1,
+  B = 2,000) reports generalization uncertainty. §18.h's second bullet no
+  longer accepts a cross-method win on distance correlation. Machine
+  enumeration `docs/run_matrix_v1_6.json` with `tests/test_run_matrix_v1_6.py`;
+  the v1.5 matrix is kept unchanged. Authoritative source:
+  `docs/proposals/2026-11-protocol-v1.6-amendment.md`. Ratification = merge
+  of the amendment PR; no hold-out run precedes it.
 
 - **1.5 (2026-07-04)** — Temporal-holdout scoring rules locked before
   any Phase 3/4/5 run. Holm families defined once (core m=5 per dataset

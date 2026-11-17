@@ -1,0 +1,631 @@
+{
+  "schema_version": "1.1",
+  "protocol_version": "1.6",
+  "amendment": "docs/proposals/2026-11-protocol-v1.6-amendment.md",
+  "supersedes": "docs/run_matrix_v1_5.json (kept unchanged as the v1.5 registration)",
+  "scope": "All 23 registered section-18 hold-out cells, each marked in_scope or deferred (v1.6 clause a). In scope: 5 AI-art cells + 6 Korean-forest cells on the canonical encoder = 11. Deferred: 12 Korean-forest cells on the two non-canonical encoders. Holm families are recomputed from this file by tests/test_run_matrix_v1_6.py.",
+  "seed_set": "D",
+  "n_seeds": 30,
+  "methods": [
+    "reap_mlp",
+    "parametric_umap",
+    "identity",
+    "linear_head"
+  ],
+  "paired_baselines": [
+    "parametric_umap",
+    "identity",
+    "linear_head"
+  ],
+  "core_paired_baselines": [
+    "single_seed",
+    "best_of_n",
+    "naive_average",
+    "procrustes",
+    "bertopic"
+  ],
+  "primary_test_metrics": [
+    "trustworthiness",
+    "distance_correlation",
+    "silhouette_holdout",
+    "ari_adapted_stage10"
+  ],
+  "supporting_metrics": [
+    "source_separability_silhouette",
+    "occupancy_kl",
+    "occupancy_wasserstein1"
+  ],
+  "metric_recipe_notes": {
+    "trustworthiness": "k=15, cosine (protocol section 18.e); training-independent for all methods",
+    "distance_correlation": "condensed-vector recipe (registered recipe id distance_correlation: Pearson r between condensed unique-pair distance vectors; NOT Szekely dCorr and NOT the dist_corr_loss full-matrix training-loss recipe - see v1.5 clause m)",
+    "silhouette_holdout": "silhouette of held-out projections under nearest-centroid labels",
+    "ari_adapted_stage10": "adapted Stage-10 ARI: held-out KMeans vs full-rerun KMeans on the same held-out"
+  },
+  "metric_roles": {
+    "trustworthiness": {
+      "cross_method": "primary",
+      "head_vs_head": "primary"
+    },
+    "distance_correlation": {
+      "cross_method": "training-objective-aligned, supporting",
+      "head_vs_head": "primary"
+    },
+    "silhouette_holdout": {
+      "cross_method": "supporting",
+      "head_vs_head": "supporting"
+    },
+    "ari_adapted_stage10": {
+      "cross_method": "supporting",
+      "head_vs_head": "supporting"
+    }
+  },
+  "replicate_rule": "Random-split strategies (T5, K2-T4, K2-T5) aggregate each metric across their replicates to the per-seed mean BEFORE any paired test, so every strategy contributes exactly one 30-value column per metric per method and the family sizes below are exact.",
+  "family_correction": "Holm-Bonferroni within each family; Benjamini-Hochberg FDR reported alongside as a sensitivity check (protocol section 8). Primary/supporting role marks say which comparisons carry headline claims; ALL enumerated tests are family members regardless of role.",
+  "a1_demographics": [
+    "Art_practice",
+    "Age",
+    "POC",
+    "Gender_identity",
+    "AI_models_familiarity",
+    "Used_AI_art_models",
+    "Professional_artist",
+    "Purchase_art",
+    "compensation"
+  ],
+  "a1_excluded": {
+    "Country": "constant (all-USA) in artist_perspectives.csv; excluded per v1.5 clause l"
+  },
+  "kf_only_supporting_metrics": [],
+  "deferred_metrics": {
+    "cross_encoder_procrustes_disparity": "needs at least two encoders per strategy; deferred with the non-canonical-encoder cells (v1.6 clause a)"
+  },
+  "per_seed_unit": {
+    "consensus": "one consensus per cell (per replicate for random splits), built from the 30 Set D seeds as UMAP seeds",
+    "trained_methods": [
+      "reap_mlp",
+      "linear_head",
+      "parametric_umap"
+    ],
+    "training_runs_per_method": 30,
+    "training_seed_of_run_i": "Set D seed i",
+    "pairing": "by seed index i",
+    "deterministic_methods": [
+      "identity"
+    ],
+    "deterministic_test": "Wilcoxon signed-rank on d_i = REAP run i minus the single identity value",
+    "interpretation": "run-to-run (training) variation for a fixed split and consensus; not evidence about generalization to new documents"
+  },
+  "generalization_interval": {
+    "run": "run 1 (first Set D seed) of every method, designated before results",
+    "resamples": 2000,
+    "scheme": "paired subsample of 80% of held-out documents without replacement (same subsample for both methods); source documents subsampled where v1.5 clause f groups chunks",
+    "interval": "95% percentile interval of REAP minus baseline",
+    "in_holm_family": false
+  },
+  "acceptance": {
+    "ai_art": "at least 3 of 5 cells: trustworthiness mean > 0.70 AND distance_correlation mean > 0.70 on held-out",
+    "korean_forest": "at least 3 of 6 in-scope cells: same thresholds",
+    "korean_forest_K1_trustworthiness_floor": 0.65,
+    "significance": "per corpus, at least one in-scope strategy where REAP beats parametric_umap on trustworthiness AND beats linear_head on trustworthiness or distance_correlation, Holm-corrected alpha 0.05 (v1.6 clause c)"
+  },
+  "declared_family_sizes": {
+    "ai_art_holdout": 60,
+    "korean_forest_holdout": 72,
+    "korean_forest_holdout_deferred_encoders": 144,
+    "core_methods_per_dataset_per_metric": 5,
+    "a1_demographics": 9
+  },
+  "cells": [
+    {
+      "cell_id": "ai_art/T1",
+      "corpus": "ai_art",
+      "strategy": "T1",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "future: hold out year in {2023, 2024, 2025} (960 of 1,736)",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "ai_art/T2",
+      "corpus": "ai_art",
+      "strategy": "T2",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "past: hold out year in {2013, 2015, 2016, 2017} (248 of 1,736)",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "ai_art/T3",
+      "corpus": "ai_art",
+      "strategy": "T3",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "single-recent: hold out year == 2025 (220 of 1,736)",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "ai_art/T4",
+      "corpus": "ai_art",
+      "strategy": "T4",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "single-mid: hold out year == 2019 (70 of 1,736)",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "ai_art/T5",
+      "corpus": "ai_art",
+      "strategy": "T5",
+      "encoder": "intfloat/e5-large-v2",
+      "description": "random 20% stratified by year, 3 replicates",
+      "replicates": 3,
+      "master_seeds": [
+        20260521,
+        20260522,
+        20260523
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "korean_forest/K1/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K1",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "corpus-OOS: project 1,662 external pledges into the KF reference space",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "korean_forest/K1/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K1",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "corpus-OOS: project 1,662 external pledges into the KF reference space",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K1/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K1",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "corpus-OOS: project 1,662 external pledges into the KF reference space",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T1/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T1",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "hold out Moon reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "korean_forest/K2-T1/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T1",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "hold out Moon reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T1/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T1",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "hold out Moon reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T2/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T2",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "hold out Lee reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "korean_forest/K2-T2/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T2",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "hold out Lee reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T2/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T2",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "hold out Lee reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T3/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T3",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "hold out Park reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "korean_forest/K2-T3/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T3",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "hold out Park reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T3/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T3",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "hold out Park reference sentences",
+      "replicates": 1,
+      "master_seeds": [],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T4/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T4",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "random 20% stratified by president",
+      "replicates": 1,
+      "master_seeds": [
+        20260524
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "korean_forest/K2-T4/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T4",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "random 20% stratified by president",
+      "replicates": 1,
+      "master_seeds": [
+        20260524
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T4/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T4",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "random 20% stratified by president",
+      "replicates": 1,
+      "master_seeds": [
+        20260524
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T5/paraphrase-multilingual-MiniLM-L12-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T5",
+      "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+      "description": "random 20% unstratified",
+      "replicates": 1,
+      "master_seeds": [
+        20260525
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "in_scope"
+    },
+    {
+      "cell_id": "korean_forest/K2-T5/paraphrase-multilingual-mpnet-base-v2",
+      "corpus": "korean_forest",
+      "strategy": "K2-T5",
+      "encoder": "paraphrase-multilingual-mpnet-base-v2",
+      "description": "random 20% unstratified",
+      "replicates": 1,
+      "master_seeds": [
+        20260525
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    },
+    {
+      "cell_id": "korean_forest/K2-T5/intfloat/multilingual-e5-large",
+      "corpus": "korean_forest",
+      "strategy": "K2-T5",
+      "encoder": "intfloat/multilingual-e5-large",
+      "description": "random 20% unstratified",
+      "replicates": 1,
+      "master_seeds": [
+        20260525
+      ],
+      "paired_baselines": [
+        "parametric_umap",
+        "identity",
+        "linear_head"
+      ],
+      "primary_test_metrics": [
+        "trustworthiness",
+        "distance_correlation",
+        "silhouette_holdout",
+        "ari_adapted_stage10"
+      ],
+      "status": "deferred",
+      "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
+    }
+  ]
+}
