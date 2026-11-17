@@ -9,11 +9,13 @@ this amendment lands. No §18 result exists at the time of writing.
 `tests/test_run_matrix_v1_6.py`. The v1.5 matrix (`docs/run_matrix_v1_5.json`)
 stays unchanged as the record of what v1.5 registered.
 
-This amendment does three things before any hold-out number exists: it
+This amendment does four things before any hold-out number exists: it
 narrows which of the 23 registered hold-out evaluations are run first, and
 says what happens to the rest (clause a); it defines what the "30 per-seed
 values" in every paired test are, which v1.5 left unstated (clause b); and it
-fixes one acceptance rule that contradicted v1.5 clause (c) (clause c).
+fixes one acceptance rule that contradicted v1.5 clause (c) (clause c); and it
+fixes exactly how each split, reference partition, and K is built, so none of
+those can be chosen after results exist (clause e).
 
 ---
 
@@ -21,11 +23,16 @@ fixes one acceptance rule that contradicted v1.5 clause (c) (clause c).
 
 ### (a) Run scope: 11 evaluations first, 12 deferred as a separate family
 
-**In scope (run first):** the 11 evaluations that need no new embeddings —
+**In scope (run first):** the 11 evaluations on the canonical encoders —
 
 - AI-art T1–T5 (encoder `intfloat/e5-large-v2`), and
 - Korean forest K1 and K2-T1…T5 on the canonical encoder
   `paraphrase-multilingual-MiniLM-L12-v2`.
+
+K1 needs one small build first: the pledge snapshot holds only 18-d
+coordinates from an earlier projection head, not raw embeddings, so the 1,662
+pledge texts are embedded with the canonical MiniLM encoder by a result-blind
+build script before K1 runs (clause e).
 
 **Deferred:** the 12 Korean-forest evaluations on the two non-canonical
 encoders (`paraphrase-multilingual-mpnet-base-v2`,
@@ -108,7 +115,55 @@ The bullet now reads:
   on trustworthiness **or** distance correlation (head-vs-head, where both
   train on the same loss), at Holm-corrected α = 0.05.
 
-### (d) Unchanged
+### (e) How each split, reference partition, and K is built
+
+Fixed now so the driver implements a rule rather than a choice.
+
+**Grouping units (applies v1.5 clause f).** AI-art chunks come from 125 source
+documents, identified by `line_number` in the AI-art source chunks file, so
+document identifiers are recoverable and T5 is **group-aware**: all chunks of a
+document stay on one side. Korean-forest sentences carry no document id, but 10
+of the 905 share their normalized text (`section_text_norm`) with another
+sentence; sentences with identical normalized text form one group, so an exact
+duplicate can never sit on both sides.
+
+**Splits.**
+
+- AI-art T1–T4: by year, exactly as §18.b.
+- AI-art T5 (master seeds 20260521 / 20260522 / 20260523): held-out set = the
+  first fold of scikit-learn `StratifiedGroupKFold(n_splits=5, shuffle=True,
+  random_state=<master seed>)`, stratified by year, grouped by source
+  document — about 20% of chunks; the realised count is recorded, not forced
+  to 347.
+- Korean forest K1: in-set = all 905 reference sentences; held-out = the
+  1,662 pledges (clause a).
+- K2-T1 / T2 / T3: hold out the Moon (390) / Lee (164) / Park (351) sentences.
+- K2-T4 (master seed 20260524): first fold of `StratifiedGroupKFold(n_splits=5,
+  shuffle=True, random_state=20260524)`, stratified by president, grouped by
+  normalized text.
+- K2-T5 (master seed 20260525): `GroupShuffleSplit(n_splits=1, test_size=0.2,
+  random_state=20260525)`, grouped by normalized text.
+
+**Leakage audit.** Every random split (T5, K2-T4, K2-T5) reports, next to its
+metrics, the distribution of each held-out document's highest cosine
+similarity to any in-set document and the share above 0.95 — even where
+grouping applies, since near-duplicates need not share a group.
+
+**K.** K_holdout is chosen once per cell on the in-set consensus as the
+silhouette-maximizing K over 5…30 (KMeans seed 42). This is the §9 composite
+rule (0.5 × silhouette + 0.5 × trustworthiness): the consensus embedding's
+trustworthiness does not depend on K, so both rules pick the same K.
+
+**Reference partition for the adapted ARI.** The consensus pipeline is rerun
+on in-set ∪ held-out with the same 30 Set D seeds and settings; KMeans with
+K_holdout (seed 42) partitions it, and the held-out rows' labels are the
+reference partition.
+
+**Subsample intervals.** The subsample draws (clause b, item 6) use a local
+generator seeded with the first Set D seed; random-split strategies get one
+set of intervals per replicate.
+
+### (f) Unchanged
 
 Everything else in v1.5 stands: metrics and their recipes, the replicate
 rule, the leakage audit, minimum fold sizes, the identity null

@@ -821,6 +821,12 @@ Korean-forest evaluations on the mpnet and multilingual-e5 encoders are
 deferred (embeddings not built; no encoder-robustness claim) and are
 reported as "deferred", never silently absent. The cross-encoder
 Procrustes disparity metric (§18.e) is deferred with them.
+Split construction, grouping units (source documents for AI-art T5;
+identical normalized text for the Korean-forest random splits), the leakage
+audit, the K rule and the adapted-ARI reference partition are fixed in v1.6
+clause (e). K1 first needs the 1,662 pledge texts embedded with the
+canonical MiniLM encoder (the cached pledge snapshot holds only projected
+coordinates).
 
 ### 18.b AI-art strategies (5)
 
@@ -983,7 +989,10 @@ reported.
   seed index, with the identity baseline tested against its single value;
   a separate paired 80%-subsample interval over held-out documents (run 1,
   B = 2,000) reports generalization uncertainty. §18.h's second bullet no
-  longer accepts a cross-method win on distance correlation. Machine
+  longer accepts a cross-method win on distance correlation. Split construction
+  and grouping, the leakage audit, the K rule, and the adapted-ARI reference
+  partition fixed (clause e); K1 needs the pledge texts embedded with the
+  canonical encoder first. Machine
   enumeration `docs/run_matrix_v1_6.json` with `tests/test_run_matrix_v1_6.py`;
   the v1.5 matrix is kept unchanged. Authoritative source:
   `docs/proposals/2026-11-protocol-v1.6-amendment.md`. Ratification = merge

@@ -65,7 +65,11 @@ def test_all_v1_5_cells_kept_unchanged_apart_from_status(
     v1_5 = {c["cell_id"]: c for c in matrix_v1_5["cells"]}
     assert v1_6.keys() == v1_5.keys()
     for cell_id, old in v1_5.items():
-        new = {k: v for k, v in v1_6[cell_id].items() if k not in ("status", "deferral_reason")}
+        new = {
+            k: v
+            for k, v in v1_6[cell_id].items()
+            if k not in ("status", "deferral_reason", "prerequisite")
+        }
         assert new == old, cell_id
 
 
