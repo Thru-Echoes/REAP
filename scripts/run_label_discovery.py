@@ -708,6 +708,9 @@ def get_all_pass_ids(research_root: Path) -> list[str]:
     folder = get_output_root(research_root) / "d2_open_coding"
     ids = []
     for bundle in sorted(folder.glob("*/bundle.json")):
+        # Folders starting with "_" hold derived outputs (the summary), not passes.
+        if bundle.parent.name.startswith("_") or not (bundle.parent / "codes.jsonl").is_file():
+            continue
         if get_record(bundle).run_status == "completed":
             ids.append(bundle.parent.name)
     return ids
