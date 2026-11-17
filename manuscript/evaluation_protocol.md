@@ -366,7 +366,7 @@ green-narrative):
 
 - Anthropic: `claude-opus-4-6` (matches Claude Code's running model;
   `claude-sonnet-4-6` is a cheaper alternative for batch labeling).
-- OpenAI: `gpt-6.1-terra` (v1.6 clause f; was `gpt-5.4-mini`).
+- OpenAI: `gpt-6.1-terra` (v1.6 clause f).
 
 Labels from both providers are reported side-by-side; the golden
 validation suite (tests/test_labeling_golden.py) enforces that both
