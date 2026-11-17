@@ -110,7 +110,9 @@ class DiscoveryRecord(BaseModel):
     python_version: str = Field(..., min_length=1, description="Python version.")
     platform: str = Field(..., min_length=1, description="Full platform string.")
     packages: dict[str, str] = Field(..., description="Versions of the tracked libraries.")
-    run_status: Literal["completed", "failed"] = Field(..., description="Whether the step finished.")
+    run_status: Literal["completed", "failed"] = Field(
+        ..., description="Whether the step finished."
+    )
     failure_reason: str | None = Field(default=None, description="Required when the step failed.")
     started_at: AwareDatetime = Field(..., description="Step start, timezone-aware.")
     finished_at: AwareDatetime = Field(..., description="Step end, timezone-aware.")
@@ -139,11 +141,15 @@ def get_code_state(repo_root: Path) -> CodeState:
     try:
         commit = subprocess.run(
             ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
         status = subprocess.run(
             ["git", "-C", str(repo_root), "status", "--porcelain", "--untracked-files=no"],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         raise RuntimeError(f"cannot read git state of {repo_root}: {exc}") from exc

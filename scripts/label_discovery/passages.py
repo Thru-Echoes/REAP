@@ -66,22 +66,31 @@ KEYWORD_PATTERNS: dict[str, str] = {
     "net_zero": r"\bnet[- ]zero\b",
     "decarbonization": r"\bdecarboni[sz]\w*",
     "methane": r"\bmethane\b",
-    "climate_treaties": r"\bparis (?:climate )?(?:agreement|accord)\b|\bkyoto\b|\bunfccc\b|\bcop ?2\d\b",
+    "climate_treaties": (
+        r"\bparis (?:climate )?(?:agreement|accord)\b|\bkyoto\b|\bunfccc\b|\bcop ?2\d\b"
+    ),
     "climate_hazards": (
         r"\bextreme weather\b|\bsea[- ]levels?\b|\bwildfires?\b|\bdroughts?\b|\bheat ?waves?\b"
     ),
     "energy": r"\benergy\b",
     "renewables": r"\brenewables?\b",
     "solar": r"\bsolar\b",
-    "wind_power": r"\b(?:wind (?:power|energy|turbines?|farms?|projects?)|offshore wind|onshore wind)\b",
+    "wind_power": (
+        r"\b(?:wind (?:power|energy|turbines?|farms?|projects?)|offshore wind|onshore wind)\b"
+    ),
     "oil": r"\boil\b|\bpetroleum\b|\bcrude\b|\bopec\b",
-    "gas": r"\bnatural gas\b|\blng\b|\bshale\b|\bfrack\w*|\bhydraulic fracturing\b|\bgasoline\b|\bgas prices?\b",
+    "gas": (
+        r"\bnatural gas\b|\blng\b|\bshale\b|\bfrack\w*|\bhydraulic fracturing\b"
+        r"|\bgasoline\b|\bgas prices?\b"
+    ),
     "coal": r"\bcoal\b",
     "nuclear_power": r"\bnuclear (?:power|energy|plants?|reactors?|fuel)\b",
     "fossil_fuels": r"\bfossil[- ]fuels?\b",
     "pipelines": r"\b(?:oil|gas|keystone(?: xl)?) pipelines?\b",
     "drilling": r"\bdrilling\b",
-    "electricity_grid": r"\belectricity\b|\b(?:power|electric|electrical) grids?\b|\bthe grid\b|\bclean power\b",
+    "electricity_grid": (
+        r"\belectricity\b|\b(?:power|electric|electrical) grids?\b|\bthe grid\b|\bclean power\b"
+    ),
     "electric_vehicles": r"\belectric vehicles?\b|\bevs?\b|\bcharging stations?\b",
     "batteries": r"\bbatter(?:y|ies)\b",
     "hydrogen": r"\bhydrogen\b",
@@ -89,7 +98,9 @@ KEYWORD_PATTERNS: dict[str, str] = {
     "hydro_geothermal": r"\bhydro(?:power|electric\w*)\b|\bgeothermal\b",
 }
 
-_COMPILED_KEYWORDS = {key: re.compile(pattern, re.IGNORECASE) for key, pattern in KEYWORD_PATTERNS.items()}
+_COMPILED_KEYWORDS = {
+    key: re.compile(pattern, re.IGNORECASE) for key, pattern in KEYWORD_PATTERNS.items()
+}
 
 
 def get_word_count(text: str) -> int:
@@ -172,7 +183,9 @@ def get_passages(paragraphs: list[str], rule: ChunkingRule) -> list[str]:
     current_words = 0
     for unit in _get_units(paragraphs, rule):
         unit_words = get_word_count(unit)
-        if current and (len(current) >= rule.max_paragraphs or current_words + unit_words > rule.max_words):
+        if current and (
+            len(current) >= rule.max_paragraphs or current_words + unit_words > rule.max_words
+        ):
             passages.append("\n\n".join(current))
             current, current_words = [], 0
         current.append(unit)

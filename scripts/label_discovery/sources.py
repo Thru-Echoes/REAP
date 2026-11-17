@@ -192,7 +192,9 @@ def get_white_house_documents(
             doc_date = datetime.strptime(text_path.name[:8], "%Y%m%d").date()
             stated = datetime.strptime(meta["date_text"].strip(), "%B %d, %Y").date()
             if stated != doc_date:
-                raise ValueError(f"{rel}: file-name date {doc_date} differs from metadata date {stated}")
+                raise ValueError(
+                    f"{rel}: file-name date {doc_date} differs from metadata date {stated}"
+                )
             admin, reason = _get_admin(meta["president"].strip(), doc_date, rel)
             if admin is None:
                 if skipped is not None:
@@ -230,7 +232,7 @@ def _get_pdf_path(local_path: str, extractor_root: Path, prefix_map: dict[str, P
     """Resolve a manifest ``local_path`` on this machine. Pure (no file access)."""
     for old, new in prefix_map.items():
         if local_path.startswith(old):
-            return new / local_path[len(old):]
+            return new / local_path[len(old) :]
     candidate = Path(local_path)
     return candidate if candidate.is_absolute() else extractor_root / candidate
 
@@ -299,8 +301,8 @@ def get_corporate_reports(
                 sections = [
                     CorporateSection(section_index=index, section_title=title, section_text=text)
                     for index, title, text in conn.execute(
-                        "SELECT section_index, section_title, section_text FROM extraction_sections "
-                        "WHERE extraction_id = ? ORDER BY section_index",
+                        "SELECT section_index, section_title, section_text "
+                        "FROM extraction_sections WHERE extraction_id = ? ORDER BY section_index",
                         (extraction_id,),
                     )
                 ]
@@ -309,8 +311,14 @@ def get_corporate_reports(
                     raise FileNotFoundError(f"record {record_id}: PDF not found at {pdf_path}")
                 pdf_sha = get_file_sha256(pdf_path)
                 if sha and pdf_sha != sha:
-                    left_out.append({"record_id": record_id, "company_slug": slug, "year": str(year),
-                                     "reason": "pdf_hash_differs_from_manifest"})
+                    left_out.append(
+                        {
+                            "record_id": record_id,
+                            "company_slug": slug,
+                            "year": str(year),
+                            "reason": "pdf_hash_differs_from_manifest",
+                        }
+                    )
                     continue
                 reports.append(
                     CorporateReport(

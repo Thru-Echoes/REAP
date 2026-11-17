@@ -225,7 +225,9 @@ def get_pool(
         for key, value in side_counts.items():
             counts[f"{side}_passages_{key}"] = value
     counts["excluded_neighbours"] = len(neighbours)
-    return PoolResult(kept=kept, excluded_neighbours=neighbours, counts=dict(sorted(counts.items())))
+    return PoolResult(
+        kept=kept, excluded_neighbours=neighbours, counts=dict(sorted(counts.items()))
+    )
 
 
 def get_pool_summary(result: PoolResult) -> dict[str, object]:
@@ -243,14 +245,20 @@ def get_pool_summary(result: PoolResult) -> dict[str, object]:
             sorted(Counter(a for a, _ in {(p.admin or "", p.doc_id) for p in presidential}).items())
         ),
         "presidential_by_year": dict(sorted(Counter(str(p.year) for p in presidential).items())),
-        "presidential_by_doc_type": dict(sorted(Counter(p.doc_type or "" for p in presidential).items())),
+        "presidential_by_doc_type": dict(
+            sorted(Counter(p.doc_type or "" for p in presidential).items())
+        ),
         "corporate_by_industry": dict(sorted(Counter(p.industry or "" for p in corporate).items())),
-        "corporate_companies_by_industry": {k: len(v) for k, v in sorted(industry_companies.items())},
+        "corporate_companies_by_industry": {
+            k: len(v) for k, v in sorted(industry_companies.items())
+        },
         "corporate_by_year": dict(sorted(Counter(str(p.year) for p in corporate).items())),
         "keyword_hits_presidential": dict(
             sorted(Counter(k for p in presidential for k in p.keywords).items())
         ),
-        "keyword_hits_corporate": dict(sorted(Counter(k for p in corporate for k in p.keywords).items())),
+        "keyword_hits_corporate": dict(
+            sorted(Counter(k for p in corporate for k in p.keywords).items())
+        ),
     }
 
 
@@ -262,4 +270,3 @@ def get_pool_rows(passages: Iterable[PoolPassage]) -> list[dict[str, object]]:
 def get_passage_from_row(row: dict[str, object]) -> PoolPassage:
     """Validate one JSONL row back into a passage; fails closed on any defect. Pure."""
     return PoolPassage.model_validate(row)
-
