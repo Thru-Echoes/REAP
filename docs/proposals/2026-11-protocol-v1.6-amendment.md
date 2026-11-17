@@ -167,6 +167,18 @@ reference partition.
 generator seeded with the first Set D seed; random-split strategies get one
 set of intervals per replicate.
 
+**Which inputs each hold-out metric compares.** Trustworthiness and
+distance correlation compare each held-out document's raw embedding with its
+placement by the method (§18.e: "between raw and projected held-out"). This
+differs from the distance correlation that `train_projection_head` reports
+inside its cross-validation, which compares the head's prediction with the
+consensus target; the two are different numbers and are never quoted
+interchangeably (for example the catalog's `distance_correlation.projection_cv`
+is the target-vs-prediction kind). The pilot values behind the 0.70 floors
+(v1.5 clause i) are flagged for this reason: if they came from the
+target-vs-prediction kind, the floor was set on a different quantity than the
+one it now applies to, and the floor is reported as a sanity check only.
+
 **Aggregation.** Results are combined only when every in-scope cell (every
 replicate) has a completed record file from merged code (protocol ≥ 1.6, no
 uncommitted changes); a missing, failed, or extra run stops the aggregation
