@@ -167,6 +167,23 @@ reference partition.
 generator seeded with the first Set D seed; random-split strategies get one
 set of intervals per replicate.
 
+**Aggregation.** Results are combined only when every in-scope cell (every
+replicate) has a completed record file from merged code (protocol ≥ 1.6, no
+uncommitted changes); a missing, failed, or extra run stops the aggregation
+with an error instead of being averaged around. For each family member
+(cell × baseline × test metric), the per-seed REAP column is paired with the
+baseline's column by seed index (random strategies first take the per-seed
+mean over replicates); the identity baseline's single value is repeated
+across the 30 seeds, so its test is the signed-rank test on d_i. Tests are
+two-sided Wilcoxon signed-rank; effect sizes are the mean paired difference
+and paired Cohen's d_z; each method's per-cell mean carries a 95% bootstrap
+interval over the 30 seeds (10,000 resamples, generator seed 42). A member
+that cannot be tested — an undefined metric on any seed, or fewer than two
+non-zero paired differences — stays in its family with p = 1 and is
+reported as untestable with the reason, so the family size never shrinks
+after results exist. Holm is applied within each family, with
+Benjamini–Hochberg alongside.
+
 ### (f) Unchanged
 
 Everything else in v1.5 stands: metrics and their recipes, the replicate
