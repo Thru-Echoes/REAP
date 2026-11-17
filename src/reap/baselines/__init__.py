@@ -11,6 +11,9 @@ Currently exposed:
 * ``run_bertopic_baseline`` — BERTopic's default pipeline
   (UMAP → HDBSCAN → c-TF-IDF). Pre-registered as baseline #5 in
   ``manuscript/evaluation_protocol.md`` §3.
+* ``run_parametric_umap_baseline`` — Parametric UMAP (Sainburg et al. 2021).
+* ``get_identity_projection`` — the §18.d identity hold-out baseline: copy the
+  nearest reference document's map coordinate (deterministic, no training).
 
 Each baseline returns a frozen :class:`BaselineResult` carrying the
 low-dimensional embedding, the per-document cluster labels, and the
@@ -22,6 +25,10 @@ labels from KMeans, centroids derived from labels).
 from __future__ import annotations
 
 from reap.baselines.bertopic_baseline import BaselineResult, run_bertopic_baseline
+from reap.baselines.identity_baseline import (
+    IdentityProjectionResult,
+    get_identity_projection,
+)
 from reap.baselines.parametric_umap_baseline import (
     ParametricUMAPResult,
     run_parametric_umap_baseline,
@@ -29,7 +36,9 @@ from reap.baselines.parametric_umap_baseline import (
 
 __all__ = [
     "BaselineResult",
+    "IdentityProjectionResult",
     "ParametricUMAPResult",
+    "get_identity_projection",
     "run_bertopic_baseline",
     "run_parametric_umap_baseline",
 ]

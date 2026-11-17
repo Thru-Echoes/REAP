@@ -11,6 +11,14 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Identity hold-out baseline (`reap.baselines.get_identity_projection`): each
+  new document takes the reference-map coordinate of its nearest reference
+  document in the original embedding space (cosine by default, exact search,
+  ties to the lowest index, no randomness). It is the pre-registered
+  "just copy your nearest neighbour" floor for the hold-out evaluations, and
+  its result also reports each new document's similarity to that neighbour,
+  which the random-split leakage audit needs.
+
 - Protocol v1.5 amendment draft (`docs/proposals/2026-07-protocol-v1.5-amendment.md`)
   locking the temporal-holdout scoring rules before any experiment runs:
   Holm multiple-comparison families defined once (AI-art 60 / Korean forest
