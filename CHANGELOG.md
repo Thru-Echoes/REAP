@@ -11,6 +11,18 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Protocol v1.6 amendment draft (`docs/proposals/2026-11-protocol-v1.6-amendment.md`),
+  written before any hold-out run. It runs 11 of the 23 registered hold-out
+  evaluations first (AI-art T1–T5; Korean forest K1 and K2-T1…T5 on the
+  canonical encoder) and defers the 12 that need embeddings not yet built,
+  as their own multiple-comparison family; defines the 30 per-seed values in
+  every paired test as 30 training runs per trained method against one
+  consensus, with a separate resampling interval over held-out documents for
+  generalization; and stops §18.h from accepting a cross-method win on
+  distance correlation. `docs/run_matrix_v1_6.json` marks every cell in
+  scope or deferred, and `tests/test_run_matrix_v1_6.py` recomputes the
+  families from it. The v1.5 matrix is kept unchanged.
+
 - Protocol v1.5 amendment draft (`docs/proposals/2026-07-protocol-v1.5-amendment.md`)
   locking the temporal-holdout scoring rules before any experiment runs:
   Holm multiple-comparison families defined once (AI-art 60 / Korean forest
