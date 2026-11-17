@@ -1,9 +1,12 @@
 """D1: draw the stratified discovery sample and split it into halves A and B.
 
 Strata: the four administrations (presidential), the largest corporate
-industries (ranked by the number of companies with a kept passage, then by
-kept passages), and one stratum per side of keyword-excluded passages drawn
-from documents that also have a kept passage. Within a stratum the draw is
+industries that have at least a full quota of kept passages (ranked by the
+number of companies with a kept passage, then by kept passages), and one
+stratum per side of keyword-excluded passages drawn from documents that also
+have a kept passage. When fewer industries than asked for have a full quota,
+the remaining industries are pooled into one "other" stratum that takes the
+missing quotas, so the corporate side keeps its planned size. Within a stratum the draw is
 round-robin over documents (presidential) or companies (corporate), in
 random order, so no single document or company can dominate a stratum.
 
@@ -147,9 +150,11 @@ def get_discovery_sample(
     """
     rng = np.random.default_rng(config.seed)
     ranking = get_ranked_industries(kept)
-    if len(ranking) < config.n_industries:
-        raise ValueError(f"only {len(ranking)} industries in the pool, need {config.n_industries}")
-    industries = [name for name, _, _ in ranking[: config.n_industries]]
+    eligible = [
+        name for name, _, n_passages in ranking if n_passages >= config.corporate_per_industry
+    ]
+    industries = eligible[: config.n_industries]
+    n_short = config.n_industries - len(industries)
 
     strata: list[tuple[str, list[PoolPassage], int, int, int, bool]] = []
     for admin in ADMIN_ORDER:
@@ -173,6 +178,22 @@ def get_discovery_sample(
                 config.corporate_per_industry,
                 config.repeat_per_industry,
                 config.inline_per_half_industry,
+                False,
+            )
+        )
+    if n_short:
+        # Fewer industries than asked for have a full quota of passages: the
+        # remaining industries are pooled into one stratum that takes the
+        # missing quotas, so the corporate side keeps its planned size.
+        others = {name for name, _, _ in ranking} - set(industries)
+        pool = [p for p in kept if p.side == "corporate" and p.industry in others]
+        strata.append(
+            (
+                "industry:other",
+                pool,
+                config.corporate_per_industry * n_short,
+                config.repeat_per_industry * n_short,
+                config.inline_per_half_industry * n_short,
                 False,
             )
         )

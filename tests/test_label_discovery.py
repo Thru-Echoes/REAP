@@ -19,7 +19,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 
@@ -369,14 +369,16 @@ def test_pool_verifies_corporate_text_filters_keywords_and_deduplicates(
 
 
 def _synthetic_pool() -> tuple[list[PoolPassage], list[PoolPassage]]:
-    def passage(pid: str, side: str, doc: str, **meta: Any) -> PoolPassage:
+    def passage(
+        pid: str, side: Literal["presidential", "corporate"], doc: str, **meta: Any
+    ) -> PoolPassage:
         text = f"{pid} climate text"
         return PoolPassage(
             passage_id=pid,
             side=side,
             doc_id=doc,
             passage_index=0,
-            text=text,  # type: ignore[arg-type]
+            text=text,
             text_sha256=hashlib.sha256(text.encode()).hexdigest(),
             n_words=3,
             keywords=meta.pop("keywords", ["climate"]),
@@ -451,6 +453,16 @@ def test_sample_strata_halves_subsets_and_spread() -> None:
     assert max(per_doc.values()) == 2  # 50 drawn over 40 documents: round-robin spreads them
     again, _ = get_discovery_sample(kept, neighbours, config)
     assert [s.passage.passage_id for s in again] == [s.passage.passage_id for s in sampled]
+
+
+def test_sample_pools_short_industries_into_an_other_stratum() -> None:
+    kept, neighbours = _synthetic_pool()
+    sampled, _ = get_discovery_sample(kept, neighbours, SampleConfig(corporate_per_industry=40))
+    strata = Counter(s.stratum for s in sampled)
+    industries = [k for k in strata if k.startswith("industry:") and k != "industry:other"]
+    assert len(industries) == 5  # industries 0-4 have at least 40 passages
+    assert strata["industry:other"] == 3 * 40
+    assert sum(v for k, v in strata.items() if k.startswith("industry:")) == 8 * 40
 
 
 def test_sample_fails_closed_when_a_stratum_is_too_small() -> None:

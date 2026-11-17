@@ -337,11 +337,23 @@ def run_sample(args: argparse.Namespace) -> int:
             f"{s.passage.passage_id}\n" for s in sorted(sampled, key=lambda s: s.passage.passage_id)
         ),
     )
+    sampled_industries = {
+        s.stratum.split(":", 1)[1] for s in sampled if s.stratum.startswith("industry:")
+    }
     set_json(
         ranking_path,
         [
-            {"industry": n, "companies": c, "passages": k, "sampled": i < config.n_industries}
-            for i, (n, c, k) in enumerate(ranking)
+            {
+                "industry": name,
+                "companies": companies,
+                "passages": n_passages,
+                "stratum": name
+                if name in sampled_industries
+                else "other"
+                if "other" in sampled_industries
+                else "not sampled",
+            }
+            for name, companies, n_passages in ranking
         ],
     )
     set_step_record(
