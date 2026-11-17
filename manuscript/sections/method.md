@@ -71,7 +71,7 @@ REAP provides a two-stage labeling pipeline that does not depend on any specific
 
 **Stage 1: c-TF-IDF.** For each cluster, class-based term frequency–inverse document frequency (c-TF-IDF) ranks terms by their discriminative power within the cluster relative to the corpus. The top $n$ terms (default 10) serve as statistical candidate labels. This stage requires no API calls and runs in milliseconds.
 
-**Stage 2: LLM refinement.** The candidate terms, together with a sample of representative texts from the cluster, are passed to a large language model (default: `gpt-5.4-mini` for OpenAI, `claude-opus-4-6` for Anthropic) to synthesize a coherent, human-readable cluster label. The LLM is prompted to return a short label, a one-sentence description, and a confidence score. Running both providers and comparing labels serves as a cross-provider consistency check.
+**Stage 2: LLM refinement.** The candidate terms, together with a sample of representative texts from the cluster, are passed to a large language model (default: `gpt-6.1-terra` for OpenAI, `claude-opus-4-6` for Anthropic) to synthesize a coherent, human-readable cluster label. The LLM is prompted to return a short label, a one-sentence description, and a confidence score. Running both providers and comparing labels serves as a cross-provider consistency check.
 
 **Point stratification.** Before labeling, points can be stratified into *core* (silhouette score $\ge 0$) and *peripheral* (silhouette $< 0$). Labeling on core points only produces more interpretable labels by excluding boundary cases that straddle multiple clusters. Stratification summaries (core fraction, mean silhouette per cluster) are logged alongside the labels.
 
