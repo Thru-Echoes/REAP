@@ -11,6 +11,18 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Fail-closed hold-out aggregator (`scripts/aggregate_holdout_results.py`).
+  It combines every in-scope cell under the protocol v1.6 aggregation
+  rules: two-sided paired Wilcoxon tests by seed (replicates averaged per
+  seed; identity tested against its single value), mean paired differences,
+  paired Cohen's d_z, 95% seed-bootstrap intervals, and Holm within each
+  registered family with Benjamini-Hochberg alongside. A missing, failed,
+  uncommitted-code, or extra run stops it with the list of problems. An
+  untestable comparison stays in its family with p = 1, so family sizes
+  always equal the registered sizes. It also evaluates the acceptance
+  expectations. `--status` writes the accounting table: every registered
+  cell marked completed, failed, pending, or deferred with its reason.
+
 - Hold-out cell driver (`scripts/run_holdout_cell.py`): runs one in-scope
   cell of `docs/run_matrix_v1_6.json` end to end. It builds the split as
   protocol v1.6 clause (e) fixes it, the in-set consensus from the 30 Set D
