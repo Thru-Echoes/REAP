@@ -143,7 +143,7 @@ class ReproBundle(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     schema_version: Literal["1.0"] = Field(
-        REPRO_BUNDLE_SCHEMA_VERSION, description="Version of this record-file format."
+        default=REPRO_BUNDLE_SCHEMA_VERSION, description="Version of this record-file format."
     )
     protocol_version: str = Field(
         ...,
@@ -167,7 +167,7 @@ class ReproBundle(BaseModel):
         description="SHA-256 of the dataset snapshot's embeddings as loaded.",
     )
     encoder: str | None = Field(
-        None, description="Embedding model id, when the run chose among encoders."
+        default=None, description="Embedding model id, when the run chose among encoders."
     )
     seed_set: NonEmptyStr = Field(..., description="Seed-manifest set name, e.g. 'D'.")
     seeds: list[int] = Field(
@@ -195,7 +195,7 @@ class ReproBundle(BaseModel):
         ..., description="Whether the run finished; a failed run still leaves a record."
     )
     failure_reason: str | None = Field(
-        None, description="Why the run failed; required when run_status is 'failed'."
+        default=None, description="Why the run failed; required when run_status is 'failed'."
     )
     started_at: AwareDatetime = Field(..., description="Run start, timezone-aware.")
     finished_at: AwareDatetime = Field(..., description="Run end, timezone-aware.")
