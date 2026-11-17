@@ -237,21 +237,22 @@ def _get_pdf_path(local_path: str, extractor_root: Path, prefix_map: dict[str, P
 
 def get_corporate_reports(
     manifest_db: Path, extractor_root: Path, prefix_map: dict[str, Path]
-) -> tuple[list[CorporateReport], str]:
+) -> tuple[list[CorporateReport], str, list[dict[str, str]]]:
     """Read every report that has extracted sections, choosing one extraction per report.
 
     Inputs: the manifest database path, the extractor project root (for
     relative PDF paths), and a map from stale absolute path prefixes in the
     manifest to their location on this machine.
-    Output: the reports (sorted by record id) and the SHA-256 of the
-    manifest database file as read.
+    Output: the reports (sorted by record id), the SHA-256 of the manifest
+    database file as read, and the reports left out with the reason. A report
+    whose PDF hash differs from the manifest's recorded hash is left out: its
+    sections were cut from a different file, so they cannot be verified.
     Side effects: copies the database to a temporary directory and reads the
     copy; hashes every PDF.
 
     Raises
     ------
     FileNotFoundError : If a report's PDF is missing.
-    ValueError : If a PDF's hash differs from the manifest's recorded hash.
     """
     manifest_sha = get_file_sha256(manifest_db)
     with tempfile.TemporaryDirectory(prefix="cp_manifest_") as tmp:
@@ -274,6 +275,7 @@ def get_corporate_reports(
                 """
             ).fetchall()
             reports: list[CorporateReport] = []
+            left_out: list[dict[str, str]] = []
             for record_id, slug, name, industry, year, local_path, sha in records:
                 extractions = conn.execute(
                     """
@@ -307,7 +309,9 @@ def get_corporate_reports(
                     raise FileNotFoundError(f"record {record_id}: PDF not found at {pdf_path}")
                 pdf_sha = get_file_sha256(pdf_path)
                 if sha and pdf_sha != sha:
-                    raise ValueError(f"record {record_id}: PDF hash differs from the manifest")
+                    left_out.append({"record_id": record_id, "company_slug": slug, "year": str(year),
+                                     "reason": "pdf_hash_differs_from_manifest"})
+                    continue
                 reports.append(
                     CorporateReport(
                         record_id=record_id,
@@ -323,7 +327,7 @@ def get_corporate_reports(
                 )
         finally:
             conn.close()
-    return reports, manifest_sha
+    return reports, manifest_sha, left_out
 
 
 def get_pdf_ngrams(pdf_path: Path, n: int) -> set[tuple[str, ...]]:

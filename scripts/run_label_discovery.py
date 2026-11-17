@@ -159,7 +159,7 @@ def run_pool(args: argparse.Namespace) -> int:
     skipped: Counter[str] = Counter()
     wh_docs = list(get_white_house_documents(wh_root, config.year_min, config.year_max, skipped))
     logger.info("read %d in-scope White House documents", len(wh_docs))
-    reports, manifest_sha = get_corporate_reports(manifest_db, extractor_root, _get_prefix_map(args.path_prefix))
+    reports, manifest_sha, left_out = get_corporate_reports(manifest_db, extractor_root, _get_prefix_map(args.path_prefix))
     logger.info("read %d corporate reports; verifying passages against PDFs", len(reports))
     result = get_pool(wh_docs, reports, config)
 
@@ -187,7 +187,8 @@ def run_pool(args: argparse.Namespace) -> int:
     set_jsonl(corp_list_path, corp_sources)
     set_json(keywords_path, {"keyword_list_id": KEYWORD_LIST_ID, "match_rule": "keep a passage when ANY "
              "pattern matches, case-insensitive", "patterns": KEYWORD_PATTERNS})
-    set_json(summary_path, get_pool_summary(result) | {"white_house_skipped": dict(sorted(skipped.items()))})
+    set_json(summary_path, get_pool_summary(result) | {"white_house_skipped": dict(sorted(skipped.items())),
+                                                       "corporate_reports_left_out": left_out})
 
     inputs = [
         get_listing_digest("white_house_tree", "white_house_root:",
