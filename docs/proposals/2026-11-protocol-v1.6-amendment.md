@@ -196,7 +196,17 @@ reported as untestable with the reason, so the family size never shrinks
 after results exist. Holm is applied within each family, with
 Benjamini–Hochberg alongside.
 
-### (f) Unchanged
+### (f) OpenAI models
+
+The OpenAI defaults follow one rule from now on: `gpt-6.1-terra` for small
+to mid tasks and `gpt-6.1-sol` for difficult ones. §7's LLM cluster labels
+use `gpt-6.1-terra` (replacing `gpt-5.4-mini`). In the deferred §17 rubric
+study the two OpenAI judges become `gpt-6.1-terra` (replacing
+`gpt-5.4-mini`) and `gpt-6.1-sol` (replacing `gpt-5.5`). Labels already
+produced keep the model they were run with, which is recorded with every
+label; any label quoted in the paper names its model.
+
+### (g) Unchanged
 
 Everything else in v1.5 stands: metrics and their recipes, the replicate
 rule, the leakage audit, minimum fold sizes, the identity null

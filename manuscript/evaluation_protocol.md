@@ -366,7 +366,7 @@ green-narrative):
 
 - Anthropic: `claude-opus-4-6` (matches Claude Code's running model;
   `claude-sonnet-4-6` is a cheaper alternative for batch labeling).
-- OpenAI: `gpt-5.4-mini`.
+- OpenAI: `gpt-6.1-terra` (v1.6 clause f; was `gpt-5.4-mini`).
 
 Labels from both providers are reported side-by-side; the golden
 validation suite (tests/test_labeling_golden.py) enforces that both
@@ -716,9 +716,10 @@ produce a name + macro-theme + description:
 
 - **Claude Opus 4.7** via dispatched subagent (no Anthropic API key
   required; uses the agent-infrastructure pathway).
-- **`gpt-5.4-mini`** via OpenAI API (the existing
-  `OPENAI_DEFAULT_MODEL` in `src/reap/labeling.py`).
-- **`gpt-5.5`** via OpenAI API (added 2026-05-14 as a stronger judge).
+- **`gpt-6.1-terra`** via OpenAI API (the existing
+  `OPENAI_DEFAULT_MODEL` in `src/reap/labeling.py`; v1.6 clause f).
+- **`gpt-6.1-sol`** via OpenAI API (the stronger judge, `OPENAI_STRONG_MODEL`;
+  v1.6 clause f).
 
 Inputs per cluster: top-10 c-TF-IDF terms, 5 representative documents
 (highest-density), cluster size. Output schema: `(label: str,
@@ -996,7 +997,10 @@ reported.
   enumeration `docs/run_matrix_v1_6.json` with `tests/test_run_matrix_v1_6.py`;
   the v1.5 matrix is kept unchanged. Authoritative source:
   `docs/proposals/2026-11-protocol-v1.6-amendment.md`. Ratification = merge
-  of the amendment PR; no hold-out run precedes it.
+  of the amendment PR; no hold-out run precedes it. OpenAI defaults move to
+  `gpt-6.1-terra` (small to mid tasks; §7 labels and the §17 standard judge)
+  and `gpt-6.1-sol` (difficult tasks; the §17 strong judge), replacing
+  `gpt-5.4-mini` and `gpt-5.5` (clause f).
 
 - **1.5 (2026-07-04)** — Temporal-holdout scoring rules locked before
   any Phase 3/4/5 run. Holm families defined once (core m=5 per dataset
