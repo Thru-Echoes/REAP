@@ -86,6 +86,11 @@ class Codebook(BaseModel):
     dimension_explanation: str = Field(
         ..., description="Why the categories do or do not mix dimensions."
     )
+    residual_category_dropped: bool = Field(
+        default=False,
+        description="True when the model listed a category named 'Other'; it was treated as the "
+        "residual bin and removed from the category list (its passages stay assigned to 'Other').",
+    )
 
 
 def get_induction_prompt(items: list[dict[str, Any]]) -> str:
@@ -197,14 +202,17 @@ def get_codebook_from_content(
     for row in data["assignments"]:
         if row["id"] in assignments:
             raise ValueError(f"passage {row['id']} assigned twice")
-        assignments[row["id"]] = row["category"].strip()
+        category = row["category"].strip()
+        assignments[row["id"]] = OTHER if category.casefold() == OTHER.casefold() else category
+    # A category named "Other" is the residual bin under another guise: drop it
+    # from the list (its passages are already assigned to "Other") and say so.
+    categories = [c for c in data["categories"] if c["name"].strip().casefold() != OTHER.casefold()]
     return Codebook(
         codebook_id=codebook_id,
         source_pass=source_pass,
         half=half,
-        categories=[
-            Category.model_validate(c | {"name": c["name"].strip()}) for c in data["categories"]
-        ],
+        categories=[Category.model_validate(c | {"name": c["name"].strip()}) for c in categories],
+        residual_category_dropped=len(categories) < len(data["categories"]),
         families=[Family.model_validate(f) for f in data["families"]],
         assignments=assignments,
         spans_multiple_dimensions=bool(data["spans_multiple_dimensions"]),
@@ -219,8 +227,11 @@ def get_codebook_errors(codebook: Codebook, ids: list[str]) -> list[str]:
     names = [c.name for c in codebook.categories]
     if not MIN_CATEGORIES <= len(names) <= MAX_CATEGORIES:
         errors.append(f"{len(names)} categories, need {MIN_CATEGORIES}-{MAX_CATEGORIES}")
-    if len(set(names)) != len(names) or OTHER in names:
-        errors.append("category names are not unique or use the reserved name 'Other'")
+    if len(set(names)) != len(names):
+        repeated = sorted({n for n in names if names.count(n) > 1})
+        errors.append(f"category names are not unique: {repeated[:3]}")
+    if OTHER in names:
+        errors.append("a category uses the reserved name 'Other'")
     missing = sorted(set(ids) - set(codebook.assignments))
     extra = sorted(set(codebook.assignments) - set(ids))
     if missing:
