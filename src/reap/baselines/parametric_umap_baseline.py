@@ -157,27 +157,8 @@ def run_parametric_umap_baseline(
             f"embeddings must be 2-d (n_samples, d_in), got shape {embeddings.shape}"
         )
 
-    try:
-        from umap.parametric_umap import ParametricUMAP  # type: ignore[import-untyped]
-    except ImportError as exc:
-        raise ImportError(
-            "Parametric UMAP baseline requires umap.parametric_umap (+tensorflow). "
-            "Install with: pip install 'reap-topics[parametric_umap]'"
-        ) from exc
-
-    # TF random_state — set BEFORE constructing ParametricUMAP so weight
-    # initialisation honors the seed.
-    _seed_tensorflow(random_state)
-
-    model: Any = ParametricUMAP(
-        n_components=n_components,
-        n_neighbors=n_neighbors,
-        min_dist=min_dist,
-        metric=metric,
-        n_epochs=n_epochs,
-        batch_size=batch_size,
-        random_state=random_state,
-        verbose=False,
+    model = _build_parametric_umap(
+        n_components, n_neighbors, min_dist, metric, random_state, n_epochs, batch_size
     )
 
     embeddings_f32 = np.asarray(embeddings, dtype=np.float32)
@@ -200,9 +181,128 @@ def run_parametric_umap_baseline(
     )
 
 
+class ParametricUMAPHoldoutResult(BaseModel):
+    """Output of a Parametric UMAP fit on in-set documents, applied to held-out ones."""
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    method: str = Field(..., description="Baseline identifier — always 'parametric_umap'")
+    embedding_in: np.ndarray = Field(
+        ..., description="(n_in, n_components) embedding of the in-set documents it was fit on"
+    )
+    embedding_out: np.ndarray = Field(
+        ...,
+        description="(n_out, n_components) held-out documents passed through the fitted "
+        "encoder (never seen during fitting)",
+    )
+    random_state: int = Field(..., description="Seed used for the fit")
+
+
+def run_parametric_umap_holdout(
+    X_in: np.ndarray,
+    X_out: np.ndarray,
+    n_components: int,
+    n_neighbors: int,
+    min_dist: float,
+    metric: str = "cosine",
+    random_state: int = DEFAULT_RANDOM_STATE,
+    n_epochs: int = DEFAULT_N_EPOCHS,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+) -> ParametricUMAPHoldoutResult:
+    """Fit Parametric UMAP on in-set documents, then project held-out documents.
+
+    The hold-out counterpart of :func:`run_parametric_umap_baseline`: the
+    encoder is trained on ``X_in`` only, and ``X_out`` goes through the
+    trained encoder (``transform``), so held-out documents never influence the
+    fit. This is the protocol §18.d parametric-UMAP baseline.
+
+    Side effects: sets global TF / numpy / Python random state; fits a model.
+
+    Parameters
+    ----------
+    X_in : (n_in, d_in) in-set embeddings the encoder is fit on.
+    X_out : (n_out, d_in) held-out embeddings to project.
+    n_components, n_neighbors, min_dist, metric : UMAP settings, matched to REAP.
+    random_state : Seed for TF / numpy / Python RNGs and UMAP.
+    n_epochs, batch_size : Training schedule.
+
+    Returns
+    -------
+    :class:`ParametricUMAPHoldoutResult` with both embeddings and the seed.
+
+    Raises
+    ------
+    ImportError : If tensorflow or ``umap.parametric_umap`` is not installed.
+    ValueError : If inputs are not 2-d or their feature counts differ.
+    """
+    if X_in.ndim != 2 or X_out.ndim != 2:
+        raise ValueError("X_in and X_out must both be 2-d (n_samples, d_in)")
+    if X_in.shape[1] != X_out.shape[1]:
+        raise ValueError(
+            f"X_in has {X_in.shape[1]} features but X_out has {X_out.shape[1]}"
+        )
+    model = _build_parametric_umap(
+        n_components, n_neighbors, min_dist, metric, random_state, n_epochs, batch_size
+    )
+    embedding_in = np.asarray(model.fit_transform(np.asarray(X_in, dtype=np.float32)))
+    embedding_out = np.asarray(model.transform(np.asarray(X_out, dtype=np.float32)))
+    logger.info(
+        "Parametric UMAP hold-out: fit on %d, projected %d, d_out=%d, random_state=%d",
+        X_in.shape[0],
+        X_out.shape[0],
+        n_components,
+        random_state,
+    )
+    return ParametricUMAPHoldoutResult(
+        method="parametric_umap",
+        embedding_in=embedding_in.astype(np.float64),
+        embedding_out=embedding_out.astype(np.float64),
+        random_state=random_state,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
+
+def _build_parametric_umap(
+    n_components: int,
+    n_neighbors: int,
+    min_dist: float,
+    metric: str,
+    random_state: int,
+    n_epochs: int,
+    batch_size: int,
+) -> Any:
+    """Seed TF / numpy / Python, then construct an unfitted ParametricUMAP.
+
+    Seeding happens BEFORE construction so weight initialisation honors the
+    seed. Side effects: sets global TF / numpy / Python random state.
+
+    Raises
+    ------
+    ImportError : If tensorflow or ``umap.parametric_umap`` is not installed.
+    """
+    try:
+        from umap.parametric_umap import ParametricUMAP  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise ImportError(
+            "Parametric UMAP baseline requires umap.parametric_umap (+tensorflow). "
+            "Install with: pip install 'reap-topics[parametric_umap]'"
+        ) from exc
+
+    _seed_tensorflow(random_state)
+    return ParametricUMAP(
+        n_components=n_components,
+        n_neighbors=n_neighbors,
+        min_dist=min_dist,
+        metric=metric,
+        n_epochs=n_epochs,
+        batch_size=batch_size,
+        random_state=random_state,
+        verbose=False,
+    )
 
 
 def _seed_tensorflow(seed: int) -> None:

@@ -108,6 +108,14 @@ from reap.filter import (
 from reap.filter import (
     compute_mahalanobis_d2 as compute_filter_mahalanobis_d2,
 )
+from reap.holdout import (
+    HeadTrainingSettings,
+    HoldoutComparison,
+    ParametricUMAPSettings,
+    compute_holdout_metrics,
+    get_paired_subsample_intervals,
+    run_holdout_comparison,
+)
 from reap.labeling import (
     label_clusters_combined,
     label_clusters_ctfidf,
@@ -223,6 +231,13 @@ __all__ = [
     "get_catalog_records",
     "read_metrics_catalog",
     "write_metrics_catalog",
+    # Hold-out comparison harness (protocol section 18)
+    "run_holdout_comparison",
+    "get_paired_subsample_intervals",
+    "compute_holdout_metrics",
+    "HoldoutComparison",
+    "HeadTrainingSettings",
+    "ParametricUMAPSettings",
     # Benchmarking
     "run_benchmark",
     "run_benchmark_with_artifacts",

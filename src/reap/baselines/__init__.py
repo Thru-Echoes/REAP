@@ -30,15 +30,19 @@ from reap.baselines.identity_baseline import (
     get_identity_projection,
 )
 from reap.baselines.parametric_umap_baseline import (
+    ParametricUMAPHoldoutResult,
     ParametricUMAPResult,
     run_parametric_umap_baseline,
+    run_parametric_umap_holdout,
 )
 
 __all__ = [
     "BaselineResult",
     "IdentityProjectionResult",
+    "ParametricUMAPHoldoutResult",
     "ParametricUMAPResult",
     "get_identity_projection",
     "run_bertopic_baseline",
     "run_parametric_umap_baseline",
+    "run_parametric_umap_holdout",
 ]

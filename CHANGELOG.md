@@ -11,6 +11,21 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Hold-out comparison harness (`reap.holdout`, main names exported from
+  `reap`). For one hold-out split, `run_holdout_comparison` trains the REAP
+  MLP head, the linear head and parametric UMAP once per training seed against
+  the one in-set consensus, runs the identity baseline once, and scores every
+  run on the four registered hold-out metrics with their recipes spelled out:
+  trustworthiness and distance correlation between raw and placed held-out
+  documents, silhouette under nearest-centroid labels, and the adapted ARI
+  against a supplied reference partition. Held-out sets below the protocol's
+  size floors get no numbers, and an undefined metric is recorded as missing
+  with a reason, never as a sentinel value. `get_paired_subsample_intervals`
+  gives the pre-designated generalization intervals.
+- `reap.baselines.run_parametric_umap_holdout`: fits parametric UMAP on the
+  in-set documents only and passes held-out documents through the fitted
+  encoder, which the hold-out comparisons need.
+
 - Identity hold-out baseline (`reap.baselines.get_identity_projection`): each
   new document takes the reference-map coordinate of its nearest reference
   document in the original embedding space (cosine by default, exact search,
