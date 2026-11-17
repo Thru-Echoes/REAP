@@ -37,14 +37,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 from _reference_ari import reference_ari
+from _research_paths import get_artifact_path
 
 from reap.evaluation import compute_pairwise_ari, compute_seed_stability
 
 TOL = 1e-9
 CSV_TOL = 1e-6
 
-REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
-RESULTS_ROOT = REPO_ROOT / "results"
 
 # SHA256 pins computed on 2026-05-20. A mismatch trips the rung.
 EXPECTED_HASHES: dict[str, str] = {
@@ -101,7 +100,7 @@ def _sha256_of(path: Path) -> str:
 
 
 def _load_pinned(rel: str) -> np.ndarray:
-    path = RESULTS_ROOT / rel
+    path = get_artifact_path(rel)
     if not path.exists():
         raise FileNotFoundError(f"Rung 4 input missing: {path}")
     actual = _sha256_of(path)
@@ -140,7 +139,7 @@ def _reference_seed_stability(
 
 def _read_published_row(corpus: str, set_letter: str) -> dict[str, float]:
     """Pull REAP's published s2s/s2c numbers from the combined CSV."""
-    csv_path = RESULTS_ROOT / corpus / f"combined_set_{set_letter}" / "all_methods.csv"
+    csv_path = get_artifact_path(corpus, f"combined_set_{set_letter}", "all_methods.csv")
     with open(csv_path) as fp:
         for row in csv.DictReader(fp):
             if row.get("method") == "reap":
@@ -161,7 +160,7 @@ def _read_published_row(corpus: str, set_letter: str) -> dict[str, float]:
 @pytest.mark.parametrize("rel", list(EXPECTED_HASHES.keys()))
 def test_rung4_input_hashes_pinned(rel):
     """Every Rung-4 input array's SHA256 matches the pinned value."""
-    actual = _sha256_of(RESULTS_ROOT / rel)
+    actual = _sha256_of(get_artifact_path(rel))
     expected = EXPECTED_HASHES[rel]
     assert actual == expected, (
         f"{rel}: SHA256 drift detected: got {actual!r}, expected {expected!r}"

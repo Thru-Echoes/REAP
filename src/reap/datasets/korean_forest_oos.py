@@ -44,7 +44,7 @@ Building the cache (one-time)::
 
     python scripts/build_datasets.py \\
         --dataset korean_forest_oos \\
-        --source-path ~/Documents/Berkeley/Research/green-narrative/hye_in
+        --source-path ../green-narrative/hye_in
 """
 
 from __future__ import annotations

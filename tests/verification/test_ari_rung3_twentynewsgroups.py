@@ -32,13 +32,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 from _reference_ari import reference_ari
+from _research_paths import get_artifact_path
 
 from reap.evaluation import compute_seed_stability
 
+# Location of this module's artifacts below results/ (see tests/_research_paths.py).
+TWENTY_NG_PARTS = ("twenty_newsgroups_reference",)
+
 TOL = 1e-9
 
-REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
-RESULTS_ROOT = REPO_ROOT / "results" / "twenty_newsgroups_reference"
 
 # Pinned SHA256 hashes from inspection on 2026-05-20. Any change indicates
 # silent regeneration of the input arrays and invalidates the rung.
@@ -74,8 +76,8 @@ def _sha256_of(path: Path) -> str:
 
 
 def _load_pinned(rel: str) -> np.ndarray:
-    """Load an .npy file under RESULTS_ROOT after verifying its pinned SHA256."""
-    path = RESULTS_ROOT / rel
+    """Load an .npy file under the 20-newsgroups results tree after verifying its pinned SHA256."""
+    path = get_artifact_path(*TWENTY_NG_PARTS, rel)
     if not path.exists():
         raise FileNotFoundError(f"Rung 3 input missing: {path}")
     actual = _sha256_of(path)
@@ -121,7 +123,7 @@ def _reference_seed_stability(
 
 def _read_published_row(set_letter: str) -> dict[str, float]:
     """Pull REAP's published s2s/s2c numbers for one set from the combined CSV."""
-    csv_path = RESULTS_ROOT / f"combined_set_{set_letter}" / "all_methods.csv"
+    csv_path = get_artifact_path(*TWENTY_NG_PARTS, f"combined_set_{set_letter}", "all_methods.csv")
     with open(csv_path) as fp:
         for row in csv.DictReader(fp):
             if row.get("method") == "reap":
@@ -142,7 +144,7 @@ def _read_published_row(set_letter: str) -> dict[str, float]:
 @pytest.mark.parametrize("rel", list(EXPECTED_HASHES.keys()))
 def test_rung3_input_hashes_pinned(rel):
     """Every load-bearing input array's SHA256 matches the pinned value."""
-    actual = _sha256_of(RESULTS_ROOT / rel)
+    actual = _sha256_of(get_artifact_path(*TWENTY_NG_PARTS, rel))
     expected = EXPECTED_HASHES[rel]
     assert actual == expected, (
         f"{rel}: SHA256 drift detected: got {actual!r}, expected {expected!r}"

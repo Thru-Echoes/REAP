@@ -12,8 +12,8 @@ Both snapshots must already be materialized in the REAP cache
 research projects::
 
     python scripts/build_datasets.py --all \\
-        --ai-art-source ~/Documents/Berkeley/Research/When-Algorithms-Meet-Artists \\
-        --korean-forest-source ~/Documents/Berkeley/Research/green-narrative/hye_in
+        --ai-art-source ../When-Algorithms-Meet-Artists \\
+        --korean-forest-source ../green-narrative/hye_in
 
 Usage
 -----

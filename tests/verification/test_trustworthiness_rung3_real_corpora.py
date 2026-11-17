@@ -38,14 +38,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 from _reference_trustworthiness import reference_trustworthiness
+from _research_paths import get_artifact_path
 
 from reap.evaluation import compute_trustworthiness
 
 TOL_PROD_VS_CSV = 1e-6
 TOL_PROD_VS_REF_COSINE = 1e-1  # Cosine tie-breaking tolerance (pinned by Rung 1)
 
-REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
-RESULTS_ROOT = REPO_ROOT / "results"
 
 EXPECTED_CONSENSUS_EMB_HASHES: dict[str, str] = {
     "twenty_newsgroups_reference/reap/set_A/consensus_embedding.npy": (
@@ -96,7 +95,7 @@ def _sha256_of(path: Path) -> str:
 
 
 def _load_consensus_emb(rel: str) -> np.ndarray:
-    path = RESULTS_ROOT / rel
+    path = get_artifact_path(rel)
     actual = _sha256_of(path)
     expected = EXPECTED_CONSENSUS_EMB_HASHES[rel]
     if actual != expected:
@@ -116,7 +115,7 @@ def _load_x_high(corpus: str) -> np.ndarray:
 
 
 def _read_published_trustworthiness(corpus: str, set_letter: str) -> dict[str, float]:
-    csv_path = RESULTS_ROOT / corpus / f"combined_set_{set_letter}" / "all_methods.csv"
+    csv_path = get_artifact_path(corpus, f"combined_set_{set_letter}", "all_methods.csv")
     with open(csv_path) as fp:
         for row in csv.DictReader(fp):
             if row.get("method") == "reap":
@@ -134,7 +133,7 @@ def _read_published_trustworthiness(corpus: str, set_letter: str) -> dict[str, f
 
 @pytest.mark.parametrize("rel", list(EXPECTED_CONSENSUS_EMB_HASHES.keys()))
 def test_rung3_consensus_emb_hashes_pinned(rel):
-    actual = _sha256_of(RESULTS_ROOT / rel)
+    actual = _sha256_of(get_artifact_path(rel))
     expected = EXPECTED_CONSENSUS_EMB_HASHES[rel]
     assert actual == expected
 

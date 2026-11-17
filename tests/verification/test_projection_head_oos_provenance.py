@@ -17,12 +17,9 @@ The load-bearing claim this test enforces:
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
-
-REPO_ROOT = Path("/Users/echoes/Documents/Berkeley/Research/REAP")
-PROJ_HEAD_ROOT = REPO_ROOT / "results" / "projection_head"
+from _research_paths import get_artifact_path
 
 CORPORA = ("twenty_newsgroups_reference", "ai_art", "korean_forest")
 SETS = ("A", "B", "C")
@@ -40,7 +37,7 @@ REQUIRED_METRIC_KEYS = (
 @pytest.mark.parametrize("set_letter", SETS)
 def test_oos_metrics_file_exists_and_well_formed(corpus, set_letter):
     """The OOS metrics JSON exists and has the required schema."""
-    path = PROJ_HEAD_ROOT / corpus / f"set_{set_letter}" / "oos_metrics.json"
+    path = get_artifact_path("projection_head", corpus, f"set_{set_letter}", "oos_metrics.json")
     assert path.exists(), f"missing: {path}"
 
     with open(path) as fp:
@@ -67,7 +64,7 @@ def test_oos_metrics_file_exists_and_well_formed(corpus, set_letter):
 @pytest.mark.parametrize("set_letter", SETS)
 def test_oos_metrics_ranges(corpus, set_letter):
     """Metrics fall in their theoretical ranges."""
-    path = PROJ_HEAD_ROOT / corpus / f"set_{set_letter}" / "oos_metrics.json"
+    path = get_artifact_path("projection_head", corpus, f"set_{set_letter}", "oos_metrics.json")
     with open(path) as fp:
         payload = json.load(fp)
     cv = payload["cv_summary"]
@@ -90,7 +87,7 @@ def test_oos_trustworthiness_above_minimum_threshold(corpus):
     while still catching a significant regression.
     """
     for set_letter in SETS:
-        path = PROJ_HEAD_ROOT / corpus / f"set_{set_letter}" / "oos_metrics.json"
+        path = get_artifact_path("projection_head", corpus, f"set_{set_letter}", "oos_metrics.json")
         with open(path) as fp:
             payload = json.load(fp)
         cv_trust = payload["cv_summary"]["trustworthiness"]["mean"]

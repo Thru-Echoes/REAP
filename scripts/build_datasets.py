@@ -11,20 +11,20 @@ Build the Korean forest snapshot from the hye_in project::
 
     python scripts/build_datasets.py \\
         --dataset korean_forest \\
-        --source-path ~/Documents/Berkeley/Research/green-narrative/hye_in
+        --source-path ../green-narrative/hye_in
 
 Build the AI-art snapshot::
 
     python scripts/build_datasets.py \\
         --dataset ai_art \\
-        --source-path ~/Documents/Berkeley/Research/When-Algorithms-Meet-Artists
+        --source-path ../When-Algorithms-Meet-Artists
 
 Build both in one go (requires both ``--ai-art-source`` and
 ``--korean-forest-source``)::
 
     python scripts/build_datasets.py --all \\
-        --ai-art-source ~/Documents/Berkeley/Research/When-Algorithms-Meet-Artists \\
-        --korean-forest-source ~/Documents/Berkeley/Research/green-narrative/hye_in
+        --ai-art-source ../When-Algorithms-Meet-Artists \\
+        --korean-forest-source ../green-narrative/hye_in
 
 Side effects
 ------------
