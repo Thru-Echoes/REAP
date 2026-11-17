@@ -22,6 +22,19 @@ Tracks work landing toward the first stable release (`1.0.0`).
   distance correlation. `docs/run_matrix_v1_6.json` marks every cell in
   scope or deferred, and `tests/test_run_matrix_v1_6.py` recomputes the
   families from it. The v1.5 matrix is kept unchanged.
+- Versioned record file for results (`src/reap/repro_bundle.py`, exported
+  from `reap`). `ReproBundle` is a frozen, strict model of `bundle.json`:
+  protocol version, code commit plus whether tracked files had uncommitted
+  changes, script, run id, dataset and its SHA-256, seed set and the exact
+  seeds, full settings, evaluation mode (`cv` / `final_fit` / `holdout`),
+  metric recipe ids, the numerical environment (versions of numpy, scipy,
+  scikit-learn, umap-learn, pynndescent, numba and torch, plus the BLAS and
+  LAPACK libraries numpy was built with), and run status with a required
+  failure reason for failed runs. Unknown, missing, or inconsistent fields
+  fail on both write and read. `write_repro_bundle` writes atomically through
+  a uniquely named temporary file. `validate_protocol_version` is the gate
+  that drivers and the aggregation step use to refuse a protocol older than
+  the one in force.
 
 - Protocol v1.5 amendment draft (`docs/proposals/2026-07-protocol-v1.5-amendment.md`)
   locking the temporal-holdout scoring rules before any experiment runs:
