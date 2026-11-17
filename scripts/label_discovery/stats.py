@@ -8,7 +8,7 @@ often keyword-excluded passages are judged really about climate or energy,
 and how often kept passages are judged not to be).
 
 Exports: ``get_cohen_kappa``, ``get_label_words``, ``get_pass_summary``,
-``get_pair_agreement``.
+``get_pair_agreement``, ``get_keyword_rule_check``.
 """
 
 from __future__ import annotations
@@ -141,4 +141,71 @@ def get_pair_agreement(
         "scope_agreement": round(mean(x == y for x, y in zip(scope_a, scope_b)), 4),
         "scope_kappa": None if kappa_scope is None else round(kappa_scope, 4),
         "label_word_jaccard_mean": round(mean(overlaps), 4),
+    }
+
+
+_CLIMATE_KEYWORDS = frozenset(
+    {
+        "climate",
+        "global_warming",
+        "greenhouse",
+        "carbon",
+        "co2",
+        "emissions",
+        "net_zero",
+        "decarbonization",
+        "methane",
+        "climate_treaties",
+        "climate_hazards",
+    }
+)
+
+
+def get_keyword_rule_check(
+    codes_a: list[dict[str, Any]],
+    codes_b: list[dict[str, Any]],
+    sample: dict[str, dict[str, Any]],
+    pool: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """How often keyword-kept passages are off-topic, by keyword signature, plus pool sizes. Pure.
+
+    A kept sample passage counts as off-topic when BOTH passes judged its
+    scope 'neither'. Signatures: one keyword id versus two or more; the bare
+    word 'energy' as the only match; any climate-family id. ``pool`` rows are
+    the kept pool, used to count how many passages each stratum would keep
+    under a two-or-more-ids rule.
+    """
+    by_a = {c["passage_id"]: c for c in codes_a}
+    by_b = {c["passage_id"]: c for c in codes_b}
+    rows: dict[str, list[bool]] = {}
+    relevant: dict[str, int] = {}
+    for pid, row in sorted(sample.items()):
+        if row["keyword_excluded"] or pid not in by_a or pid not in by_b:
+            continue
+        passage = row["passage"]
+        keywords = set(passage["keywords"])
+        off_topic = by_a[pid]["topic_scope"] == "neither" and by_b[pid]["topic_scope"] == "neither"
+        side = passage["side"]
+        signatures = ["one_id" if len(keywords) == 1 else "two_or_more_ids"]
+        if keywords == {"energy"}:
+            signatures.append("energy_only")
+        signatures.append("has_climate_id" if keywords & _CLIMATE_KEYWORDS else "energy_ids_only")
+        for signature in signatures:
+            rows.setdefault(f"{side}__{signature}", []).append(off_topic)
+        stratum = passage["admin"] if side == "presidential" else "corporate"
+        relevant[stratum] = relevant.get(stratum, 0) + (not off_topic)
+    pool_counts: dict[str, dict[str, int]] = {}
+    for row in pool:
+        stratum = row["admin"] if row["side"] == "presidential" else "corporate"
+        counts = pool_counts.setdefault(stratum, {"kept": 0, "two_or_more_ids": 0})
+        counts["kept"] += 1
+        counts["two_or_more_ids"] += len(row["keywords"]) >= 2
+    return {
+        "off_topic_share_by_signature": {
+            key: {"n": len(values), "off_topic_share": round(mean(values), 4)}
+            for key, values in sorted(rows.items())
+        },
+        "relevant_kept_passages_by_stratum": dict(sorted(relevant.items())),
+        "pool_counts_by_stratum": dict(sorted(pool_counts.items())),
+        "rule": "off-topic = both passes judged topic_scope 'neither'",
     }

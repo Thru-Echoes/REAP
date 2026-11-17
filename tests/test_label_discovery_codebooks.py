@@ -30,10 +30,15 @@ from label_discovery.crosswalk import (  # noqa: E402
     DEDUCTIVE_FRAMES,
     ConceptGroup,
     get_alignment_errors,
+    get_group_shares_by_stratum,  # noqa: E402
     get_group_stats,
     get_model_family,
 )
-from label_discovery.stats import get_cohen_kappa, get_pair_agreement  # noqa: E402
+from label_discovery.stats import (  # noqa: E402
+    get_cohen_kappa,
+    get_keyword_rule_check,
+    get_pair_agreement,
+)
 
 IDS = [f"p{i:02d}" for i in range(24)]
 
@@ -222,6 +227,53 @@ def test_crosswalk_classifies_stability_and_shares() -> None:
     assert get_model_family("claude_inline_straight") == "claude"
     with pytest.raises(ValueError):
         get_model_family("unknown_pass")
+
+
+def test_group_shares_by_stratum() -> None:
+    ids = ["wh-1", "wh-2", "cs-1", "cs-2"]
+    book = _book("terra_straight_1/A", "terra_straight_1", "A", ["Targets", "Prices"], ids)
+    group = ConceptGroup(
+        group_id="G1",
+        name="Targets",
+        definition="d",
+        suggested_family="F",
+        members=["terra_straight_1/A::Targets"],
+        deductive_frames=[],
+    )
+    strata = {"wh-1": "obama", "wh-2": "obama", "cs-1": "corporate", "cs-2": "corporate"}
+    # Assignments alternate Targets, Prices over the ids in order.
+    assert get_group_shares_by_stratum([group], [book], strata) == {
+        "G1": {"corporate": 0.5, "obama": 0.5}
+    }
+
+
+def test_keyword_rule_check_counts_signatures_and_pool() -> None:
+    def row(
+        pid: str, side: str, keywords: list[str], admin: str | None = "obama"
+    ) -> dict[str, Any]:
+        return {
+            "keyword_excluded": False,
+            "passage": {"passage_id": pid, "side": side, "keywords": keywords, "admin": admin},
+        }
+
+    sample = {
+        "a": row("a", "presidential", ["energy"]),
+        "b": row("b", "presidential", ["climate", "energy"]),
+        "c": row("c", "corporate", ["carbon"], None),
+    }
+    neither = {"stance": "none", "labels": ["x"]}
+    codes = [
+        {"passage_id": "a", "topic_scope": "neither", **neither},
+        {"passage_id": "b", "topic_scope": "climate", **neither},
+        {"passage_id": "c", "topic_scope": "neither", **neither},
+    ]
+    pool = [r["passage"] for r in sample.values()]
+    result = get_keyword_rule_check(codes, codes, sample, pool)
+    shares = result["off_topic_share_by_signature"]
+    assert shares["presidential__energy_only"] == {"n": 1, "off_topic_share": 1.0}
+    assert shares["presidential__two_or_more_ids"] == {"n": 1, "off_topic_share": 0.0}
+    assert result["relevant_kept_passages_by_stratum"] == {"corporate": 0, "obama": 1}
+    assert result["pool_counts_by_stratum"]["obama"] == {"kept": 2, "two_or_more_ids": 1}
 
 
 def test_kappa_and_pair_agreement() -> None:

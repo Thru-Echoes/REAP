@@ -13,6 +13,7 @@ record file under
 - ``induce``     D3  group one pass's free labels into a candidate codebook per half
 - ``crosswalk``  D4  align all candidate codebooks and cross them with the
                      deductive frames
+- ``tables``     D4  each concept group's share of every stratum (no model call)
 
 The research root resolves fail-closed through ``research_root.py``
 (``--research-root``, then ``REAP_RESEARCH_ROOT``, then the sibling checkout).
@@ -742,6 +743,16 @@ def run_summarize(args: argparse.Namespace) -> int:
     ):
         if a in codes and b in codes:
             pairs[f"{a}__vs__{b}"] = get_pair_agreement(codes[a], codes[b])
+    from label_discovery.files import get_jsonl
+    from label_discovery.stats import get_keyword_rule_check
+
+    pool_path = get_output_root(research_root) / "d0_passage_pool" / "pool.jsonl.gz"
+    pool = get_jsonl(pool_path)
+    keyword_check = (
+        get_keyword_rule_check(codes["terra_straight_1"], codes["sol_straight"], sample, pool)
+        if "terra_straight_1" in codes and "sol_straight" in codes
+        else {}
+    )
     out_dir = get_output_root(research_root) / "d2_open_coding" / "_summary"
     summary_path = out_dir / "coding_summary.json"
     set_json(
@@ -749,13 +760,14 @@ def run_summarize(args: argparse.Namespace) -> int:
         {
             "passes": {pid: get_pass_summary(c, sample) for pid, c in codes.items()},
             "agreement": pairs,
+            "keyword_rule_check": keyword_check,
         },
     )
     inputs = [
         get_file_digest("codes", p, get_rel(p, research_root), len(codes[pid]))
         for pid in pass_ids
         for p in [get_output_root(research_root) / "d2_open_coding" / pid / "codes.jsonl"]
-    ]
+    ] + [get_file_digest("pool", pool_path, get_rel(pool_path, research_root), len(pool))]
     set_step_record(
         step="D2",
         run_id="corporate_presidential/label_discovery/d2_open_coding/_summary",
@@ -763,7 +775,10 @@ def run_summarize(args: argparse.Namespace) -> int:
         research_root=research_root,
         inputs=inputs,
         outputs=[("coding_summary", summary_path, None)],
-        config={"passes": pass_ids},
+        config={
+            "passes": pass_ids,
+            "keyword_rule_check_passes": ["terra_straight_1", "sol_straight"],
+        },
         seeds=[],
         models=[],
         started_at=started,
@@ -1049,6 +1064,66 @@ def run_crosswalk(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_tables(args: argparse.Namespace) -> int:
+    """D4 tables: each concept group's share of every stratum, from the stored alignment.
+
+    Pure computation over the committed alignment and codebooks (no model
+    call), so the shares can be cited without repeating the alignment.
+    Side effects: reads artifacts; writes the table and its record.
+    """
+    from label_discovery.crosswalk import ConceptGroup, get_group_shares_by_stratum
+
+    started = get_now()
+    research_root = get_research_root(args.research_root)
+    sample = {r["passage"]["passage_id"]: r for r in get_sample_passages(research_root)}
+    strata = {
+        pid: "excluded"
+        if r["keyword_excluded"]
+        else (r["passage"]["admin"] if r["passage"]["side"] == "presidential" else "corporate")
+        for pid, r in sample.items()
+    }
+    root = get_output_root(research_root)
+    alignment_path = root / "d4_crosswalk" / "alignment.json"
+    alignment = json.loads(alignment_path.read_text(encoding="utf-8"))
+    groups = [ConceptGroup.model_validate(g) for g in alignment["groups"]]
+    books = get_all_codebooks(research_root)
+    if [b.codebook_id for b in books] != alignment["codebooks"]:
+        raise RuntimeError("codebooks on disk differ from the ones the alignment was made from")
+    shares = get_group_shares_by_stratum(groups, books, strata)
+    out_dir = root / "d4_crosswalk" / "tables"
+    table_path = out_dir / "group_shares_by_stratum.json"
+    set_json(
+        table_path,
+        {
+            "definition": "mean over the codebooks containing the group of the share of a "
+            "stratum's passages assigned to the group's member categories; strata are "
+            "administrations for "
+            "keyword-kept presidential passages, 'corporate' for keyword-kept corporate passages, "
+            "and 'excluded' for keyword-excluded passages",
+            "shares": shares,
+            "names": {g.group_id: g.name for g in groups},
+        },
+    )
+    set_step_record(
+        step="D4",
+        run_id="corporate_presidential/label_discovery/d4_crosswalk/tables",
+        out_dir=out_dir,
+        research_root=research_root,
+        inputs=[
+            get_file_digest(
+                "alignment", alignment_path, get_rel(alignment_path, research_root), len(groups)
+            )
+        ],
+        outputs=[("group_shares_by_stratum", table_path, len(shares))],
+        config={"strata": sorted(set(strata.values()))},
+        seeds=[],
+        models=[],
+        started_at=started,
+    )
+    logger.info("tables -> %s", table_path)
+    return 0
+
+
 def get_arg_parser() -> argparse.ArgumentParser:
     """Build the CLI parser. Pure."""
     parser = argparse.ArgumentParser(
@@ -1111,6 +1186,9 @@ def get_arg_parser() -> argparse.ArgumentParser:
     cross.add_argument("--model", default="gpt-6.1-sol", help="Aligning model.")
     cross.add_argument("--reasoning-effort", default="high", help="Reasoning effort.")
     cross.set_defaults(func=run_crosswalk)
+
+    tables = sub.add_parser("tables", help="D4: per-stratum shares of each concept group.")
+    tables.set_defaults(func=run_tables)
     return parser
 
 

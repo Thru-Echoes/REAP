@@ -15,7 +15,8 @@ it.
 
 Exports: ``DEDUCTIVE_FRAMES``, ``ConceptGroup``, ``GroupStats``,
 ``get_alignment_prompt``, ``get_alignment_format``, ``get_groups_from_content``,
-``get_alignment_errors``, ``get_model_family``, ``get_group_stats``.
+``get_alignment_errors``, ``get_model_family``, ``get_group_stats``,
+``get_group_shares_by_stratum``.
 """
 
 from __future__ import annotations
@@ -261,3 +262,36 @@ def get_group_stats(
     reached = {frame for group in groups for frame in group.deductive_frames}
     deductive_only = [frame for frame in DEDUCTIVE_FRAMES if frame not in reached]
     return sorted(stats, key=lambda s: (-s.support, s.group_id)), deductive_only
+
+
+def get_group_shares_by_stratum(
+    groups: list[ConceptGroup], codebooks: list[Codebook], strata: dict[str, str]
+) -> dict[str, dict[str, float]]:
+    """Mean share of each stratum's passages that each group captures. Pure.
+
+    ``strata`` maps passage id to a stratum label (for example an
+    administration, 'corporate', or 'excluded'). For each codebook that
+    contains the group, the share is the fraction of that codebook's passages
+    in the stratum assigned to the group's member categories; the result is
+    the mean over those codebooks.
+    """
+    by_id = {b.codebook_id: b for b in codebooks}
+    result: dict[str, dict[str, float]] = {}
+    labels = sorted(set(strata.values()))
+    for group in groups:
+        members: dict[str, set[str]] = {}
+        for member in group.members:
+            codebook_id, name = member.split("::", 1)
+            members.setdefault(codebook_id, set()).add(name)
+        shares: dict[str, list[float]] = {label: [] for label in labels}
+        for codebook_id, names in members.items():
+            assignments = by_id[codebook_id].assignments
+            for label in labels:
+                ids = [pid for pid in assignments if strata[pid] == label]
+                if ids:
+                    hits = sum(assignments[pid] in names for pid in ids)
+                    shares[label].append(hits / len(ids))
+        result[group.group_id] = {
+            label: round(mean(values), 4) for label, values in shares.items() if values
+        }
+    return result
