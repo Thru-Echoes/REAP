@@ -11,6 +11,17 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- Hold-out cell driver (`scripts/run_holdout_cell.py`): runs one in-scope
+  cell of `docs/run_matrix_v1_6.json` end to end. It builds the split as
+  protocol v1.6 clause (e) fixes it, the in-set consensus from the 30 Set D
+  seeds, K, and the adapted-ARI reference partition, then runs the hold-out
+  harness, the subsample intervals, and the leakage audit. Every artifact
+  and a `bundle.json` record go to the research root. It refuses deferred
+  cells, protocols older than 1.6, code not yet on `origin/main` or with
+  uncommitted changes, and output directories that already hold a completed
+  result. A crash still leaves a failed record. `--preflight` reports split
+  sizes, groups on both sides and leakage without training.
+
 - Protocol v1.6 amendment draft (`docs/proposals/2026-11-protocol-v1.6-amendment.md`),
   written before any hold-out run. It runs 11 of the 23 registered hold-out
   evaluations first (AI-art T1–T5; Korean forest K1 and K2-T1…T5 on the
