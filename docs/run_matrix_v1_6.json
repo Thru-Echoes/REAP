@@ -629,5 +629,5 @@
       "deferral_reason": "non-canonical encoder: embeddings not built; no encoder-robustness claim in the dissertation chapter (v1.6 clause a)"
     }
   ],
-  "split_rules": "v1.6 clause e: AI-art T5 group-aware by source document (StratifiedGroupKFold, 5 splits, first fold, stratified by year); KF K2-T4 StratifiedGroupKFold by president, K2-T5 GroupShuffleSplit test_size 0.2, both grouped by identical section_text_norm; K = silhouette argmax over 5..30 on the in-set consensus (KMeans seed 42); adapted-ARI reference = KMeans(K) on the in-set + held-out consensus rerun"
+  "split_rules": "v1.6 clause e: AI-art T5 group-aware by source document (StratifiedGroupKFold, 5 splits, first fold, stratified by year); KF K2-T4 StratifiedGroupKFold by president, K2-T5 GroupShuffleSplit test_size 0.2, both grouped by identical section_text_norm; K = silhouette argmax over 5..30 on the in-set consensus (KMeans seed 42); adapted-ARI reference = KMeans(K) on the in-set + held-out consensus rerun; leakage audit reported for every cell"
 }

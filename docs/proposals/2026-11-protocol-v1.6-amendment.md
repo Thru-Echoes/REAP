@@ -144,10 +144,14 @@ duplicate can never sit on both sides.
 - K2-T5 (master seed 20260525): `GroupShuffleSplit(n_splits=1, test_size=0.2,
   random_state=20260525)`, grouped by normalized text.
 
-**Leakage audit.** Every random split (T5, K2-T4, K2-T5) reports, next to its
-metrics, the distribution of each held-out document's highest cosine
-similarity to any in-set document and the share above 0.95 — even where
-grouping applies, since near-duplicates need not share a group.
+**Leakage audit.** Every cell reports, next to its metrics, the distribution
+of each held-out document's highest cosine similarity to any in-set document
+and the share above 0.95 — the random splits as v1.5 clause (f) requires, and
+the year, president and corpus splits too. Grouping removes exact duplicates
+from random splits but not near-duplicates, and the president splits are
+defined by president, so one normalized sentence that appears in two
+administrations' plans sits on both sides of K2-T1 and of K2-T3; the audit
+makes that visible rather than changing the registered split.
 
 **K.** K_holdout is chosen once per cell on the in-set consensus as the
 silhouette-maximizing K over 5…30 (KMeans seed 42). This is the §9 composite
