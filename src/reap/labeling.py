@@ -38,14 +38,18 @@ logger = logging.getLogger(__name__)
 # pre-registration: changing either constant changes the LLM-labeling
 # numbers that go into the manuscript.
 #
-# The OpenAI default is locked at `gpt-5.4-mini`. If a newer OpenAI
-# model becomes available, **ask Oliver before bumping** — this is not
-# a routine refresh, it changes pre-registered behaviour. (The
-# Anthropic default has the same lock-in policy by analogy; confirm with
-# Oliver before bumping that one too.)
+# OpenAI defaults follow one rule: `gpt-6.1-terra` for small to mid-sized
+# tasks (cluster labeling is one) and `gpt-6.1-sol` for difficult ones
+# (`OPENAI_STRONG_MODEL`). Changing a default changes LLM-labeling numbers,
+# so it is never a routine refresh: ask Oliver first. The Anthropic
+# default follows the same ask-first policy.
+#
+# Results produced before a change keep the model they were run with; the
+# model id is recorded with every label.
 #
 # Callers may always override per-call via the `model=` argument.
-OPENAI_DEFAULT_MODEL: str = "gpt-5.4-mini"
+OPENAI_DEFAULT_MODEL: str = "gpt-6.1-terra"
+OPENAI_STRONG_MODEL: str = "gpt-6.1-sol"
 ANTHROPIC_DEFAULT_MODEL: str = "claude-opus-4-6"
 
 
@@ -345,6 +349,16 @@ def _build_labeling_prompt(
     )
 
 
+def _uses_legacy_max_tokens(model: str) -> bool:
+    """Return True if an OpenAI model id takes the legacy ``max_tokens`` parameter.
+
+    Only the older gpt-4* and gpt-3.5* models do; GPT-5 and later (including
+    gpt-6.1-terra and gpt-6.1-sol) and the o-series require
+    ``max_completion_tokens``. Pure function.
+    """
+    return model.lower().startswith(("gpt-4", "gpt-3.5"))
+
+
 def _call_llm(provider: str, model: str, prompt: str) -> str:
     """Call the LLM API and return the response text.
 
@@ -375,13 +389,14 @@ def _call_llm(provider: str, model: str, prompt: str) -> str:
         import openai
 
         client = openai.OpenAI()
-        # GPT-5+ / reasoning models reject the legacy ``max_tokens`` parameter
-        # and require ``max_completion_tokens`` instead (OpenAI API change,
-        # 2025). Older models (gpt-4*, gpt-3.5*) still use ``max_tokens``.
+        # Current OpenAI models (GPT-5 and later, and the o-series reasoning
+        # models) reject the legacy ``max_tokens`` parameter and require
+        # ``max_completion_tokens``. Only the older gpt-4* / gpt-3.5* models
+        # still take ``max_tokens``, so the check names those, and any newer
+        # model id gets the current parameter.
         # 800 leaves room for JSON outputs with rationale fields.
         max_out = 800
-        use_new_param = model.lower().startswith(("gpt-5", "o1", "o3"))
-        if use_new_param:
+        if not _uses_legacy_max_tokens(model):
             response = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],  # type: ignore[arg-type]
@@ -462,7 +477,7 @@ def label_clusters_llm(
     texts : Raw text for each data point.
     labels : (n_samples,) cluster assignments.
     provider : "anthropic" or "openai".
-    model : Model name. Defaults to claude-opus-4-6 (anthropic) or gpt-5.4-mini (openai).
+    model : Model name. Defaults to claude-opus-4-6 (anthropic) or gpt-6.1-terra (openai).
     n_sample_texts : Number of sample texts per cluster to include in prompt.
     random_state : Seed for reproducible text sampling.
 

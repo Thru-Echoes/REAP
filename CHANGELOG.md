@@ -85,6 +85,14 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Changed
 
+- OpenAI defaults now follow one rule: `gpt-6.1-terra` for small to mid
+  tasks and `gpt-6.1-sol` for difficult ones. Cluster labeling
+  (`OPENAI_DEFAULT_MODEL`) and the standard topic-attribution judge use
+  `gpt-6.1-terra`; the strong judge (`OPENAI_STRONG_MODEL`) uses
+  `gpt-6.1-sol`. They replace `gpt-5.4-mini` and `gpt-5.5`. Labels produced
+  earlier keep the model they were run with. The choice of OpenAI token
+  parameter now names the legacy models (gpt-4*, gpt-3.5*) instead of the new
+  ones, so newer model ids get `max_completion_tokens` without code changes.
 - Relicensed from Apache-2.0 to MIT. Pre-release, single-author history, so
   the switch is clean; it settles the licensing note that listed MIT as a
   candidate pending confirmation. `LICENSE`, the `pyproject.toml` license

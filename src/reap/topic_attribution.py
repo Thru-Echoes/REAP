@@ -11,7 +11,7 @@ This module implements two LLM-judging tasks:
 
 **Step A — Cluster naming.** For each reference cluster of each dataset,
 three independent judges (Claude Opus 4.7 via subagent, OpenAI
-``gpt-5.4-mini``, OpenAI ``gpt-5.5``) produce a (label, macro_theme,
+``gpt-6.1-terra``, OpenAI ``gpt-6.1-sol``) produce a (label, macro_theme,
 description, confidence) tuple from the cluster's top c-TF-IDF terms +
 representative documents.
 
@@ -42,7 +42,8 @@ from typing import Any, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from reap.labeling import _call_llm, _check_llm_provider
+from reap.labeling import OPENAI_DEFAULT_MODEL, _call_llm, _check_llm_provider
+from reap.labeling import OPENAI_STRONG_MODEL as LABELING_STRONG_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +52,11 @@ logger = logging.getLogger(__name__)
 # Default judges
 # ---------------------------------------------------------------------------
 
-# Pinned in CLAUDE.md memory; do not bump without asking.
-OPENAI_MINI_MODEL: str = "gpt-5.4-mini"
-# Added 2026-05-14 per user direction as a stronger judge alongside the mini.
-OPENAI_STRONG_MODEL: str = "gpt-5.5"
+# The project's OpenAI defaults (see reap.labeling): the standard judge uses
+# the small-to-mid model, the strong judge the model for difficult tasks.
+# Do not change either without asking Oliver.
+OPENAI_MINI_MODEL: str = OPENAI_DEFAULT_MODEL
+OPENAI_STRONG_MODEL: str = LABELING_STRONG_MODEL
 
 # Claude judge runs as a dispatched subagent (not via the anthropic API);
 # we record the model id in outputs so the audit trail is complete.
@@ -80,7 +82,7 @@ class ClusterLabel(BaseModel):
 
     dataset: str = Field(..., description="Dataset name (e.g., 'twenty_newsgroups_reference')")
     cluster_id: int = Field(..., ge=0, description="REAP cluster id")
-    judge_model: str = Field(..., description="LLM model id (e.g., 'gpt-5.4-mini')")
+    judge_model: str = Field(..., description="LLM model id (e.g., 'gpt-6.1-terra')")
     judge_provider: Literal["openai", "anthropic-subagent"] = Field(
         ..., description="Provider channel for the call",
     )

@@ -8,7 +8,7 @@ Providers tested
 ----------------
 * **Anthropic Claude Opus 4.6** (`claude-opus-4-6`) — matches the
   "Claude = yourself" directive for labeling pipelines in the paper.
-* **OpenAI gpt-5.4-mini** — the current-generation OpenAI endpoint.
+* **OpenAI gpt-6.1-terra** — the project's OpenAI default for small to mid tasks.
 
 API key handling
 ----------------
@@ -70,7 +70,7 @@ GOLDEN_MIN_DIST = 0.1
 GOLDEN_N_SEEDS = 10
 
 ANTHROPIC_MODEL = "claude-opus-4-6"
-OPENAI_MODEL = "gpt-5.4-mini"
+OPENAI_MODEL = "gpt-6.1-terra"
 
 # Topic-appropriate keyword sets for the 8 ground-truth classes. Kept
 # permissive: a correct LLM label phrased differently still passes.
@@ -365,7 +365,7 @@ class TestAnthropicLabeling:
 
 
 # ---------------------------------------------------------------------------
-# Stage 2 — LLM refinement via OpenAI gpt-5.4-mini
+# Stage 2 — LLM refinement via OpenAI gpt-6.1-terra
 # ---------------------------------------------------------------------------
 
 
@@ -375,7 +375,7 @@ class TestAnthropicLabeling:
     reason="OPENAI_API_KEY not set — set it to run the OpenAI labeling tests",
 )
 class TestOpenAILabeling:
-    """End-to-end c-TF-IDF → OpenAI gpt-5.4-mini on the 20ng golden fixture."""
+    """End-to-end c-TF-IDF → OpenAI gpt-6.1-terra on the 20ng golden fixture."""
 
     @pytest.fixture(scope="class")
     def openai_results(
@@ -383,7 +383,7 @@ class TestOpenAILabeling:
         text_snap: DatasetSnapshot,
         kmeans_labels_and_dominant: dict,
     ) -> dict:
-        """Run the combined pipeline once with gpt-5.4-mini; reuse for tests."""
+        """Run the combined pipeline once with gpt-6.1-terra; reuse for tests."""
         assert text_snap.texts is not None
         ctfidf_results, llm_labels = label_clusters_combined(
             text_snap.texts,

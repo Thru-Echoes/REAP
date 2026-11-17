@@ -167,3 +167,31 @@ class TestLabelClustersCTfidf:
         labels = np.array([0, 0, 1, 1])
         results = label_clusters_ctfidf(texts, labels, min_df=2)
         assert len(results) == 2
+
+
+@pytest.mark.parametrize(
+    "model,legacy",
+    [
+        ("gpt-6.1-terra", False),
+        ("gpt-6.1-sol", False),
+        ("gpt-5.5", False),
+        ("o3-mini", False),
+        ("gpt-4o", True),
+        ("gpt-3.5-turbo", True),
+    ],
+)
+def test_openai_token_parameter_follows_the_model_generation(model: str, legacy: bool) -> None:
+    """Only gpt-4* / gpt-3.5* get the legacy max_tokens parameter."""
+    from reap.labeling import _uses_legacy_max_tokens
+
+    assert _uses_legacy_max_tokens(model) is legacy
+
+
+def test_openai_defaults_follow_the_project_rule() -> None:
+    """Small-to-mid tasks default to gpt-6.1-terra; difficult ones to gpt-6.1-sol."""
+    from reap.labeling import OPENAI_DEFAULT_MODEL, OPENAI_STRONG_MODEL
+    from reap.topic_attribution import OPENAI_MINI_MODEL
+    from reap.topic_attribution import OPENAI_STRONG_MODEL as JUDGE_STRONG_MODEL
+
+    assert OPENAI_DEFAULT_MODEL == OPENAI_MINI_MODEL == "gpt-6.1-terra"
+    assert OPENAI_STRONG_MODEL == JUDGE_STRONG_MODEL == "gpt-6.1-sol"
