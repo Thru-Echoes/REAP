@@ -526,6 +526,529 @@ def run_code(args: argparse.Namespace) -> int:
     return 0
 
 
+INLINE_PASS_ID = "claude_inline_straight"
+INLINE_MODEL = "claude-opus-5-5"
+
+
+def get_rel(path: Path, research_root: Path) -> str:
+    """Research-root-relative display path. Pure."""
+    return path.relative_to(research_root).as_posix()
+
+
+def get_codes(research_root: Path, pass_id: str) -> list[dict[str, Any]]:
+    """Read one completed pass's codes; fails closed when the pass has no completed record.
+
+    Side effects: reads the pass folder.
+    """
+    from label_discovery.files import get_jsonl
+    from label_discovery.records import get_record
+
+    folder = get_output_root(research_root) / "d2_open_coding" / pass_id
+    record = get_record(folder / "bundle.json")
+    if record.run_status != "completed":
+        raise RuntimeError(f"pass {pass_id} did not complete; refusing to use its codes")
+    return get_jsonl(folder / "codes.jsonl")
+
+
+def run_ingest_inline(args: argparse.Namespace) -> int:
+    """D2/D3: validate and record coding and codebooks a Claude model produced inline.
+
+    Inline work is done inside an interactive session (no API call), on
+    blinded, shuffled passages; this step maps blind ids back, validates every
+    code and codebook against the same models the API passes use, and writes
+    the record. Side effects: reads the inputs; writes artifacts.
+    """
+    from label_discovery.codebooks import get_codebook_errors, get_codebook_from_content
+    from label_discovery.coding import LENSES, PassageCode, get_quote_is_verbatim, get_user_prompt
+    from label_discovery.files import get_file_sha256, get_jsonl
+    from label_discovery.records import ModelUse
+
+    started = get_now()
+    research_root = get_research_root(args.research_root)
+    sample = {r["passage"]["passage_id"]: r for r in get_sample_passages(research_root)}
+    blind = json.loads(Path(args.blind_map).read_text(encoding="utf-8"))
+    to_pid = {m["blind_id"]: m["passage_id"] for m in blind["mapping"]}
+    subset = {pid for pid, r in sample.items() if r["in_inline_subset"]}
+    if set(to_pid.values()) != subset:
+        raise ValueError("blind map does not cover exactly the inline subset")
+    lens = LENSES["straightforward"]
+    raw_rows = [row for path in args.codes for row in get_jsonl(Path(path))]
+    codes = []
+    for row in raw_rows:
+        pid = to_pid[row["blind_id"]]
+        codes.append(
+            PassageCode(
+                passage_id=pid,
+                pass_id=INLINE_PASS_ID,
+                care=row["care"],
+                labels=row["labels"],
+                quote=row["quote"],
+                quote_verbatim=get_quote_is_verbatim(row["quote"], sample[pid]["passage"]["text"]),
+                stance=row["stance"],
+                topic_scope=row["topic_scope"],
+            )
+        )
+    if sorted(c.passage_id for c in codes) != sorted(subset):
+        raise ValueError("inline codes do not cover each inline-subset passage exactly once")
+    code_dir = get_output_root(research_root) / "d2_open_coding" / INLINE_PASS_ID
+    codes_path, raw_path, map_path, prompts_path = (
+        code_dir / "codes.jsonl",
+        code_dir / "raw_inline_codes.jsonl",
+        code_dir / "blind_map.json",
+        code_dir / "prompts.json",
+    )
+    set_jsonl(
+        codes_path, [c.model_dump(mode="json") for c in sorted(codes, key=lambda c: c.passage_id)]
+    )
+    set_jsonl(raw_path, raw_rows)
+    set_json(map_path, blind)
+    set_json(
+        prompts_path,
+        {
+            "lens": lens.model_dump(mode="json"),
+            "user_prompt_template": get_user_prompt(lens, "{passage_text}"),
+            "procedure": (
+                "the 120 inline-subset passages were shuffled with the blind-map seed, given "
+                "neutral ids, and read in six batches of 20 with no source, administration, "
+                "company, or year; codes were written against the straightforward lens "
+                "instructions, then mapped back to passage ids by this step"
+            ),
+        },
+    )
+    inline_use = ModelUse(
+        provider="anthropic-inline",
+        requested_model=INLINE_MODEL,
+        reported_models=[INLINE_MODEL],
+        settings={"lens_id": "straightforward", "interface": "interactive session, no API call"},
+        n_calls=0,
+        prompt_tokens=0,
+        completion_tokens=0,
+        reasoning_tokens=0,
+    )
+    sample_path = get_output_root(research_root) / "d1_discovery_sample" / "sample_passages.jsonl"
+    sample_digest = FileDigest(
+        role="sample_passages",
+        path=get_rel(sample_path, research_root),
+        sha256=get_file_sha256(sample_path),
+        n_rows=len(sample),
+    )
+    set_step_record(
+        step="D2",
+        run_id=f"corporate_presidential/label_discovery/d2_open_coding/{INLINE_PASS_ID}",
+        out_dir=code_dir,
+        research_root=research_root,
+        inputs=[sample_digest],
+        outputs=[
+            ("codes", codes_path, len(codes)),
+            ("raw_inline_codes", raw_path, len(raw_rows)),
+            ("blind_map", map_path, len(to_pid)),
+            ("prompts", prompts_path, None),
+        ],
+        config={
+            "pass_id": INLINE_PASS_ID,
+            "lens_id": "straightforward",
+            "lens_kind": "straightforward",
+            "n_passages": len(codes),
+            "blind_seed": blind["seed"],
+        },
+        seeds=[int(blind["seed"])],
+        models=[inline_use],
+        started_at=started,
+    )
+    for half, path in (("A", args.codebook_a), ("B", args.codebook_b)):
+        content = Path(path).read_text(encoding="utf-8")
+        codebook_id = f"{INLINE_PASS_ID}/{half}~claude"
+        codebook = get_codebook_from_content(content, codebook_id, INLINE_PASS_ID, half)
+        ids = [c.passage_id for c in codes if sample[c.passage_id]["half"] == half]
+        errors = get_codebook_errors(codebook, ids)
+        if errors:
+            raise ValueError(f"inline codebook {half} is invalid: {errors}")
+        out_dir = (
+            get_output_root(research_root) / "d3_codebooks" / f"{INLINE_PASS_ID}~claude" / half
+        )
+        codebook_path = out_dir / "codebook.json"
+        set_json(codebook_path, codebook.model_dump(mode="json"))
+        set_step_record(
+            step="D3",
+            run_id=f"corporate_presidential/label_discovery/d3_codebooks/{INLINE_PASS_ID}~claude/{half}",
+            out_dir=out_dir,
+            research_root=research_root,
+            inputs=[
+                get_file_digest("codes", codes_path, get_rel(codes_path, research_root), len(codes))
+            ],
+            outputs=[("codebook", codebook_path, len(codebook.categories))],
+            config={
+                "codebook_id": codebook_id,
+                "source_pass": INLINE_PASS_ID,
+                "half": half,
+                "inducer": "Claude inline, from its own labels and care sentences",
+            },
+            seeds=[],
+            models=[
+                inline_use.model_copy(
+                    update={
+                        "settings": {
+                            "task": "codebook induction",
+                            "interface": "interactive session, no API call",
+                        }
+                    }
+                )
+            ],
+            started_at=started,
+        )
+    logger.info("inline: %d codes and two codebooks recorded", len(codes))
+    return 0
+
+
+def get_all_pass_ids(research_root: Path) -> list[str]:
+    """Pass ids with a completed D2 record, sorted. Side effects: reads records."""
+    from label_discovery.records import get_record
+
+    folder = get_output_root(research_root) / "d2_open_coding"
+    ids = []
+    for bundle in sorted(folder.glob("*/bundle.json")):
+        if get_record(bundle).run_status == "completed":
+            ids.append(bundle.parent.name)
+    return ids
+
+
+def run_summarize(args: argparse.Namespace) -> int:
+    """D2 summary: distributions, keyword-rule check, repeat-run and cross-model agreement.
+
+    Side effects: reads codes; writes the summary and its record.
+    """
+    from label_discovery.stats import get_pair_agreement, get_pass_summary
+
+    started = get_now()
+    research_root = get_research_root(args.research_root)
+    sample = {r["passage"]["passage_id"]: r for r in get_sample_passages(research_root)}
+    pass_ids = get_all_pass_ids(research_root)
+    codes = {pid: get_codes(research_root, pid) for pid in pass_ids}
+    repeat_ids = {pid for pid, r in sample.items() if r["in_repeat_set"]}
+    pairs: dict[str, Any] = {}
+    if "terra_straight_1" in codes and "terra_straight_2" in codes:
+        pairs["repeat_run_terra_straight__repeat_set"] = get_pair_agreement(
+            codes["terra_straight_1"], codes["terra_straight_2"], repeat_ids
+        )
+        pairs["repeat_run_terra_straight__all"] = get_pair_agreement(
+            codes["terra_straight_1"], codes["terra_straight_2"]
+        )
+    for a, b in (
+        ("terra_straight_1", "sol_straight"),
+        ("terra_straight_1", INLINE_PASS_ID),
+        ("sol_straight", INLINE_PASS_ID),
+        ("terra_straight_1", "terra_narrative"),
+        ("sol_straight", "sol_expert"),
+    ):
+        if a in codes and b in codes:
+            pairs[f"{a}__vs__{b}"] = get_pair_agreement(codes[a], codes[b])
+    out_dir = get_output_root(research_root) / "d2_open_coding" / "_summary"
+    summary_path = out_dir / "coding_summary.json"
+    set_json(
+        summary_path,
+        {
+            "passes": {pid: get_pass_summary(c, sample) for pid, c in codes.items()},
+            "agreement": pairs,
+        },
+    )
+    inputs = [
+        get_file_digest("codes", p, get_rel(p, research_root), len(codes[pid]))
+        for pid in pass_ids
+        for p in [get_output_root(research_root) / "d2_open_coding" / pid / "codes.jsonl"]
+    ]
+    set_step_record(
+        step="D2",
+        run_id="corporate_presidential/label_discovery/d2_open_coding/_summary",
+        out_dir=out_dir,
+        research_root=research_root,
+        inputs=inputs,
+        outputs=[("coding_summary", summary_path, None)],
+        config={"passes": pass_ids},
+        seeds=[],
+        models=[],
+        started_at=started,
+    )
+    logger.info("summary of %d passes -> %s", len(pass_ids), summary_path)
+    return 0
+
+
+def run_induce(args: argparse.Namespace) -> int:
+    """D3: induce one candidate codebook per half from one pass's labels.
+
+    Side effects: OpenAI calls; writes codebooks, logs, and records.
+    """
+    import openai
+    from label_discovery.codebooks import (
+        INDUCTION_SYSTEM_PROMPT,
+        get_induction_format,
+        get_induction_prompt,
+        run_induction,
+    )
+
+    research_root = get_research_root(args.research_root)
+    sample = {r["passage"]["passage_id"]: r for r in get_sample_passages(research_root)}
+    codes = get_codes(research_root, args.pass_id)
+    codes_path = get_output_root(research_root) / "d2_open_coding" / args.pass_id / "codes.jsonl"
+    client = openai.OpenAI(api_key=get_openai_key(research_root), max_retries=4, timeout=900)
+    status = 0
+    for half in ("A", "B"):
+        started = get_now()
+        items = [
+            {"id": c["passage_id"], "labels": c["labels"], "care": c["care"]}
+            for c in codes
+            if sample[c["passage_id"]]["half"] == half
+        ]
+        codebook_id = f"{args.pass_id}/{half}"
+        codebook, logs = run_induction(
+            items,
+            codebook_id,
+            args.pass_id,
+            half,
+            client.chat.completions.create,
+            args.model,
+            args.reasoning_effort,
+        )
+        out_dir = get_output_root(research_root) / "d3_codebooks" / args.pass_id / half
+        calls_path, prompt_path, codebook_path = (
+            out_dir / "calls.jsonl.gz",
+            out_dir / "prompt.json",
+            out_dir / "codebook.json",
+        )
+        set_jsonl(calls_path, logs)
+        set_json(
+            prompt_path,
+            {
+                "system": INDUCTION_SYSTEM_PROMPT,
+                "user": get_induction_prompt(items),
+                "response_format": get_induction_format(),
+            },
+        )
+        outputs: list[tuple[str, Path, int | None]] = [
+            ("calls", calls_path, len(logs)),
+            ("prompt", prompt_path, None),
+        ]
+        if codebook is not None:
+            set_json(codebook_path, codebook.model_dump(mode="json"))
+            outputs.append(("codebook", codebook_path, len(codebook.categories)))
+        settings = {
+            "max_completion_tokens": 32000,
+            "reasoning_effort": args.reasoning_effort,
+            "response_format": "json_schema strict",
+        }
+        kwargs: dict[str, Any] = dict(
+            step="D3",
+            run_id=f"corporate_presidential/label_discovery/d3_codebooks/{codebook_id}",
+            out_dir=out_dir,
+            research_root=research_root,
+            inputs=[
+                get_file_digest("codes", codes_path, get_rel(codes_path, research_root), len(codes))
+            ],
+            outputs=outputs,
+            config={
+                "codebook_id": codebook_id,
+                "source_pass": args.pass_id,
+                "half": half,
+                "n_passages": len(items),
+                "inducer_model": args.model,
+            },
+            seeds=[],
+            models=[get_model_use("openai", args.model, settings, logs)],
+            started_at=started,
+        )
+        if codebook is None:
+            python_version, platform_name, packages = get_software_versions()
+            record = DiscoveryRecord(
+                step="D3",
+                run_id=kwargs["run_id"],
+                script=SCRIPT,
+                code=get_code_state(REAP_ROOT),
+                inputs=kwargs["inputs"],
+                outputs=[
+                    get_file_digest(r, p, get_rel(p, research_root), n) for r, p, n in outputs
+                ],
+                config=json.loads(json.dumps(kwargs["config"])),
+                seeds=[],
+                models=kwargs["models"],
+                python_version=python_version,
+                platform=platform_name,
+                packages=packages,
+                run_status="failed",
+                failure_reason="no valid codebook after all attempts; see validation_errors",
+                started_at=started,
+                finished_at=get_now(),
+            )
+            set_record(record, out_dir / "bundle.json")
+            status = 1
+            logger.error("%s: no valid codebook", codebook_id)
+            continue
+        set_step_record(**kwargs)
+        logger.info("%s: %d categories", codebook_id, len(codebook.categories))
+    return status
+
+
+def get_all_codebooks(research_root: Path) -> list[Any]:
+    """Every completed candidate codebook, sorted by id. Side effects: reads records and files."""
+    from label_discovery.codebooks import Codebook
+    from label_discovery.records import get_record
+
+    books = []
+    for bundle in sorted((get_output_root(research_root) / "d3_codebooks").glob("*/*/bundle.json")):
+        if get_record(bundle).run_status != "completed":
+            continue
+        books.append(
+            Codebook.model_validate_json(
+                (bundle.parent / "codebook.json").read_text(encoding="utf-8")
+            )
+        )
+    return sorted(books, key=lambda b: b.codebook_id)
+
+
+def run_crosswalk(args: argparse.Namespace) -> int:
+    """D4: align every candidate codebook and cross it with the deductive frames.
+
+    Side effects: one OpenAI alignment call (retried when invalid); writes artifacts.
+    """
+    import csv
+    import io
+
+    import openai
+    from label_discovery.codebooks import get_usage
+    from label_discovery.coding import LENSES, PASSES
+    from label_discovery.crosswalk import (
+        ALIGNMENT_SYSTEM_PROMPT,
+        DEDUCTIVE_FRAMES,
+        get_alignment_errors,
+        get_alignment_format,
+        get_alignment_prompt,
+        get_group_stats,
+        get_groups_from_content,
+    )
+    from label_discovery.files import set_text
+
+    started = get_now()
+    research_root = get_research_root(args.research_root)
+    sample = {r["passage"]["passage_id"]: r for r in get_sample_passages(research_root)}
+    sides = {pid: r["passage"]["side"] for pid, r in sample.items()}
+    books = get_all_codebooks(research_root)
+    lens_kinds = {pid: LENSES[spec.lens_id].kind for pid, spec in PASSES.items()} | {
+        INLINE_PASS_ID: "straightforward"
+    }
+    client = openai.OpenAI(api_key=get_openai_key(research_root), max_retries=4, timeout=1200)
+    request: dict[str, Any] = {
+        "model": args.model,
+        "messages": [
+            {"role": "system", "content": ALIGNMENT_SYSTEM_PROMPT},
+            {"role": "user", "content": get_alignment_prompt(books)},
+        ],
+        "max_completion_tokens": 64000,
+        "reasoning_effort": args.reasoning_effort,
+        "response_format": get_alignment_format(),
+    }
+    logs: list[dict[str, Any]] = []
+    groups = None
+    for attempt in range(1, 4):
+        response = client.chat.completions.create(**request)
+        content = response.choices[0].message.content or ""
+        entry: dict[str, Any] = {
+            "attempt": attempt,
+            "response_id": response.id,
+            "reported_model": response.model,
+            "system_fingerprint": response.system_fingerprint,
+            "finish_reason": response.choices[0].finish_reason,
+            "content": content,
+            **get_usage(response),
+        }
+        try:
+            candidate = get_groups_from_content(content)
+            errors = get_alignment_errors(candidate, books)
+        except (ValueError, KeyError, TypeError) as exc:
+            candidate, errors = None, [f"{type(exc).__name__}: {exc}"[:300]]
+        entry["validation_errors"] = errors
+        logs.append(entry)
+        if candidate is not None and not errors:
+            groups = candidate
+            break
+        logger.warning("alignment attempt %d invalid: %s", attempt, errors[:3])
+    out_dir = get_output_root(research_root) / "d4_crosswalk"
+    calls_path = out_dir / "calls.jsonl.gz"
+    set_jsonl(calls_path, logs)
+    if groups is None:
+        logger.error("no valid alignment after all attempts")
+        return 1
+    stats, deductive_only = get_group_stats(groups, books, sides, lens_kinds)
+    groups_path, table_path, frames_path = (
+        out_dir / "alignment.json",
+        out_dir / "concept_groups.csv",
+        out_dir / "deductive_frames.json",
+    )
+    set_json(
+        groups_path,
+        {
+            "groups": [g.model_dump(mode="json") for g in groups],
+            "codebooks": [b.codebook_id for b in books],
+        },
+    )
+    rows = [s.model_dump(mode="json") for s in stats]
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=list(rows[0]), lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {k: ";".join(map(str, v)) if isinstance(v, list) else v for k, v in row.items()}
+        )
+    set_text(table_path, buffer.getvalue())
+    set_json(
+        frames_path,
+        {
+            "frames": DEDUCTIVE_FRAMES,
+            "deductive_only": deductive_only,
+            "groups_per_frame": {
+                f: [s.group_id for s in stats if f in s.deductive_frames] for f in DEDUCTIVE_FRAMES
+            },
+        },
+    )
+    inputs = [
+        get_file_digest("codebook", p, get_rel(p, research_root), None)
+        for p in sorted((get_output_root(research_root) / "d3_codebooks").glob("*/*/codebook.json"))
+    ]
+    settings = {
+        "max_completion_tokens": 64000,
+        "reasoning_effort": args.reasoning_effort,
+        "response_format": "json_schema strict",
+    }
+    set_step_record(
+        step="D4",
+        run_id="corporate_presidential/label_discovery/d4_crosswalk",
+        out_dir=out_dir,
+        research_root=research_root,
+        inputs=inputs,
+        outputs=[
+            ("calls", calls_path, len(logs)),
+            ("alignment", groups_path, len(groups)),
+            ("concept_groups", table_path, len(rows)),
+            ("deductive_frames", frames_path, None),
+        ],
+        config={
+            "codebooks": [b.codebook_id for b in books],
+            "aligner_model": args.model,
+            "stability_rule": (
+                "stable = both halves and two or more model families; model-specific = "
+                "both halves, one family; sample-specific = one half"
+            ),
+        },
+        seeds=[],
+        models=[get_model_use("openai", args.model, settings, logs)],
+        started_at=started,
+    )
+    logger.info(
+        "crosswalk: %d groups over %d codebooks; deductive-only: %s",
+        len(groups),
+        len(books),
+        deductive_only,
+    )
+    return 0
+
+
 def get_arg_parser() -> argparse.ArgumentParser:
     """Build the CLI parser. Pure."""
     parser = argparse.ArgumentParser(
@@ -563,6 +1086,31 @@ def get_arg_parser() -> argparse.ArgumentParser:
         "--out-dir", default=None, help="Pilot output folder; no record file is written."
     )
     code.set_defaults(func=run_code)
+
+    inline = sub.add_parser(
+        "ingest-inline", help="D2/D3: record inline Claude coding and codebooks."
+    )
+    inline.add_argument(
+        "--codes", nargs="+", required=True, help="Inline code JSONL files (blind ids)."
+    )
+    inline.add_argument("--blind-map", required=True, help="Blind-id map JSON.")
+    inline.add_argument("--codebook-a", required=True, help="Inline codebook JSON for half A.")
+    inline.add_argument("--codebook-b", required=True, help="Inline codebook JSON for half B.")
+    inline.set_defaults(func=run_ingest_inline)
+
+    summary = sub.add_parser("summarize", help="D2: summarize all completed coding passes.")
+    summary.set_defaults(func=run_summarize)
+
+    induce = sub.add_parser("induce", help="D3: induce codebooks for halves A and B from one pass.")
+    induce.add_argument("--pass-id", required=True, help="Completed coding pass id.")
+    induce.add_argument("--model", default="gpt-6.1-sol", help="Inducing model.")
+    induce.add_argument("--reasoning-effort", default="high", help="Reasoning effort.")
+    induce.set_defaults(func=run_induce)
+
+    cross = sub.add_parser("crosswalk", help="D4: align codebooks and cross with deductive frames.")
+    cross.add_argument("--model", default="gpt-6.1-sol", help="Aligning model.")
+    cross.add_argument("--reasoning-effort", default="high", help="Reasoning effort.")
+    cross.set_defaults(func=run_crosswalk)
     return parser
 
 
