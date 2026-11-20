@@ -9,13 +9,22 @@ array and one 2-d vector array) or a folder holding ``emb.npy`` and
 ``ids.txt``; a passage table (``.csv`` or ``.jsonl`` with an ``id`` column)
 selects the reference rows with ``--where column=value[,value...]``.
 
+REAP has no default parameters. Every setting (UMAP dimensions, neighbours,
+minimum distance, the K rule) is read from a parameter-search record made on
+exactly this reference input (``--search-record``; see ``search_record.py``),
+and the run refuses a record made on other rows. The only way to run without
+one is ``--code-check``, which needs every setting given explicitly and
+stamps every output as a code check (``CODE_CHECK.txt``, and ``code_check``
+in the record files); nothing may be read from such outputs.
+
 One run is one reference variant and one seed set:
 
 1. the per-seed UMAP maps of the seed set, their averaged distance matrix,
    and REAP's final map at seed 42 (the package's own functions);
-2. K: chosen by silhouette on this run's seed-42 map (``--k auto``; on Set A
-   this is protocol §9's rule), or read from another run's record
-   (``--k-from``), so sets B and C use Set A's K;
+2. K: fixed by the search record, or chosen by the record's rule on this
+   run's seed-42 map (on Set A this is protocol §9's rule), or read from a
+   Set A run made with the same search (``--k-from``), so sets B and C use
+   Set A's K;
 3. consensus labels (k-means at K, seed 42) and their centroids;
 4. the final step repeated under each final seed (map, k-means at the same
    K, and the K silhouette would pick), with the pairwise ARI between
@@ -44,9 +53,12 @@ Usage::
 
     python scripts/run_reference_probes.py --label presidential_ps_e5 \\
         --reference <embeddings> --reference-table <passages.csv> --where corner=PS \\
+        --search-record <search record for these rows> \\
         --probe calls=<embeddings> --probe reports=<embeddings> \\
         --seed-set A --output-dir <folder>
     python scripts/run_reference_probes.py ... --seed-set B --k-from <set A folder>/run_record.json
+    python scripts/run_reference_probes.py ... --code-check --n-components 5 \\
+        --n-neighbors 15 --min-dist 0.1 --k-min 5 --k-max 30
 
 Side effects: reads the input files and the seed manifest; writes the output
 folder; CPU-heavy (one UMAP run per seed plus the final maps, and the head).
@@ -69,12 +81,20 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
 from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_rand_score
 from sklearn.neighbors import NearestNeighbors
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from search_record import (  # noqa: E402
+    get_checked_record,
+    get_input_sha256,
+    write_code_check_marker,
+)
 
 from reap.clustering import find_best_k  # noqa: E402
 from reap.consensus import (  # noqa: E402
@@ -335,6 +355,84 @@ def _sha256(arr: np.ndarray) -> str:
     return hashlib.sha256(np.ascontiguousarray(arr).tobytes()).hexdigest()
 
 
+SETTING_FLAGS = ("n_components", "n_neighbors", "min_dist", "k_min", "k_max")
+
+
+class RunSettings(BaseModel):
+    """The settings one run uses and where they came from."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    umap: dict[str, Any] = Field(..., description="n_components, n_neighbors, min_dist.")
+    k_range: list[int] = Field(..., min_length=1, description="Candidate K values.")
+    fixed_k: int | None = Field(default=None, description="K fixed by the search, if any.")
+    k_rule: str | None = Field(default=None, description="The search's K rule, if any.")
+    code_check: bool = Field(..., description="True when no search record backs the settings.")
+    source: dict[str, Any] = Field(..., description="Search record path, run id and hash.")
+
+
+def get_run_settings(args: argparse.Namespace, X: np.ndarray) -> RunSettings:
+    """Settings from a search record for exactly this input, or from a labelled code check.
+
+    REAP has no default parameters. With ``--search-record`` every setting is
+    read from the record, which must match this input row for row, and no
+    setting flag may be given. With ``--code-check`` every setting flag must be
+    given. Anything else raises ``ValueError``.
+    """
+    given = [f for f in SETTING_FLAGS if getattr(args, f) is not None]
+    if args.search_record and args.code_check:
+        raise ValueError("give --search-record or --code-check, not both")
+    if args.search_record:
+        if given:
+            raise ValueError(f"settings come from the search record; do not also pass {given}")
+        path = Path(args.search_record)
+        record = get_checked_record(path, input_sha256=get_input_sha256(X), n_rows=len(X),
+                                    method="reap")
+        return RunSettings(
+            umap={"n_components": record.n_components, "n_neighbors": record.n_neighbors,
+                  "min_dist": record.min_dist},
+            k_range=list(record.k_range), fixed_k=record.k, k_rule=record.k_rule,
+            code_check=False,
+            source={"search_record": str(path), "search_run_id": record.search.run_id,
+                    "search_record_sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    if args.code_check:
+        missing = [f for f in SETTING_FLAGS if getattr(args, f) is None]
+        if missing:
+            raise ValueError(
+                f"a code check needs every setting given explicitly; missing {missing}")
+        return RunSettings(
+            umap={"n_components": args.n_components, "n_neighbors": args.n_neighbors,
+                  "min_dist": args.min_dist},
+            k_range=list(range(args.k_min, args.k_max + 1)), code_check=True,
+            source={"code_check": "settings given on the command line; not a result"})
+    raise ValueError(
+        "REAP has no default parameters: give --search-record from a parameter search on this "
+        "exact input, or --code-check for a run whose outputs are not results")
+
+
+def get_k(args: argparse.Namespace, run_settings: RunSettings, Y: np.ndarray) -> tuple[int, str]:
+    """K and its rule: fixed by the search, reused from Set A, or chosen here by silhouette.
+
+    ``--k-from`` must point at a run backed by the same search (or, for a code
+    check, at another code check); otherwise ``ValueError``.
+    """
+    if args.k_from:
+        if run_settings.fixed_k is not None:
+            raise ValueError("the search record fixes K; --k-from is not needed")
+        earlier = json.loads(Path(args.k_from).read_text(encoding="utf-8"))
+        if bool(earlier.get("code_check")) != run_settings.code_check or (
+            earlier.get("parameter_source", {}).get("search_run_id")
+            != run_settings.source.get("search_run_id")
+        ):
+            raise ValueError(f"{args.k_from} was not made with the same parameter search")
+        return int(earlier["k"]), f"frozen from {Path(args.k_from).parent.name}"
+    if run_settings.fixed_k is not None:
+        return run_settings.fixed_k, f"fixed by the search: {run_settings.k_rule}"
+    k = int(find_best_k(Y, run_settings.k_range, random_state=FINAL_SEED).best_k)
+    rule = run_settings.k_rule or "silhouette on this run's seed-42 map (code check)"
+    return k, f"{rule}; chosen on this run's seed-42 map"
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     """One reference variant and seed set; writes every output. Returns the run record."""
     from reap.projection import train_projection_head
@@ -350,19 +448,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     seeds = [int(s) for s in manifest["sets"][args.seed_set]["seeds"]]
     if args.n_seeds is not None:
         seeds = seeds[: args.n_seeds]
-    settings = {"n_components": args.n_components, "n_neighbors": args.n_neighbors,
-                "min_dist": args.min_dist}
-    k_range = list(range(args.k_min, args.k_max + 1))
-    logger.info("reference %s: %d rows, %d seeds", args.label, len(ids), len(seeds))
+    run_settings = get_run_settings(args, X)
+    settings = run_settings.umap
+    k_range = run_settings.k_range
+    if run_settings.code_check:
+        write_code_check_marker(out)
+    logger.info("reference %s: %d rows, %d seeds%s", args.label, len(ids), len(seeds),
+                " (CODE CHECK)" if run_settings.code_check else "")
     maps = get_multi_seed_embeddings(X, seeds, **settings, metric="cosine")
     D = get_consensus_distance_matrix(maps)
     Y, _ = get_consensus_embedding(D, **settings, random_state=FINAL_SEED)
-    if args.k_from:
-        k = int(json.loads(Path(args.k_from).read_text(encoding="utf-8"))["k"])
-        k_rule = f"frozen from {Path(args.k_from).parent.name}"
-    else:
-        k = int(find_best_k(Y, k_range, random_state=FINAL_SEED).best_k)
-        k_rule = "silhouette on this run's seed-42 map"
+    k, k_rule = get_k(args, run_settings, Y)
     labels = np.asarray(KMeans(n_clusters=k, random_state=FINAL_SEED,
                                n_init="auto").fit_predict(Y), dtype=np.int64)
     centroids = get_centroids(Y, labels)
@@ -377,8 +473,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     import umap
 
-    layout = umap.UMAP(n_components=2, n_neighbors=args.n_neighbors, min_dist=args.min_dist,
-                       random_state=FINAL_SEED).fit(Y)
+    layout = umap.UMAP(n_components=2, n_neighbors=settings["n_neighbors"],
+                       min_dist=settings["min_dist"], random_state=FINAL_SEED).fit(Y)
     _save_arrays(out / "reference.npz", {
         "ids": ids, "consensus": Y, "labels": labels, "repeat_labels": repeats["labels"],
         "layout_2d": np.asarray(layout.embedding_)})
@@ -431,8 +527,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         encoding="utf-8")
     record = {
         "label": args.label, "seed_set": args.seed_set, "n_reference": int(len(ids)),
+        "code_check": run_settings.code_check,
+        "parameter_source": run_settings.source,
         "reference_input": str(args.reference), "reference_where": args.where,
-        "reference_sha256": _sha256(X), "settings": settings, "k_range": [args.k_min, args.k_max],
+        "reference_sha256": _sha256(X), "settings": settings,
+        "k_range": [min(k_range), max(k_range)],
         "k": k, "k_rule": k_rule, "cluster_sizes": np.bincount(labels).tolist(),
         "final_step_repeats": {"final_seeds": list(args.final_seeds),
                                "silhouette_k_per_seed": repeats["silhouette_k_per_seed"],
@@ -448,12 +547,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     (out / "run_record.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     write_repro_bundle(ReproBundle(
         protocol_version=PROTOCOL_VERSION, code=get_code_state(REPO_ROOT),
-        script="scripts/run_reference_probes.py", run_id=f"reference_probes/{args.label}/"
-        f"{args.seed_set}", dataset=args.label, dataset_version=args.dataset_version,
+        script="scripts/run_reference_probes.py",
+        run_id=f"{'code_check/' if run_settings.code_check else ''}reference_probes/"
+        f"{args.label}/{args.seed_set}", dataset=args.label,
+        dataset_version=args.dataset_version,
         dataset_sha256=_sha256(X), encoder=args.encoder, seed_set=args.seed_set,
         seeds=seeds + list(args.final_seeds) + [HEAD_SEED], seed_manifest=SEED_MANIFEST_RELPATH,
-        config={"umap": settings, "k_range": [args.k_min, args.k_max], "k": k,
-                "k_rule": k_rule, "where": list(args.where), "head": HEAD_SETTINGS,
+        config={"umap": settings, "k_range": [min(k_range), max(k_range)], "k": k,
+                "k_rule": k_rule, "code_check": run_settings.code_check,
+                "parameter_source": run_settings.source,
+                "where": list(args.where), "head": HEAD_SETTINGS,
                 "probes": [p.partition("=")[0] for p in args.probe],
                 "knn_vote_k": KNN_VOTE_K, "n_seeds": len(seeds)},
         evaluation_mode="final_fit",
@@ -478,11 +581,17 @@ def _get_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed-set", default="A", choices=["A", "B", "C"])
     p.add_argument("--n-seeds", type=int, default=None,
                    help="Use only the first n seeds of the set (smoke runs and tests).")
-    p.add_argument("--n-components", type=int, default=5)
-    p.add_argument("--n-neighbors", type=int, default=15)
-    p.add_argument("--min-dist", type=float, default=0.1)
-    p.add_argument("--k-min", type=int, default=5)
-    p.add_argument("--k-max", type=int, default=30)
+    p.add_argument("--search-record", default=None,
+                   help="Parameter-search record for exactly this reference input; every "
+                        "setting is read from it.")
+    p.add_argument("--code-check", action="store_true",
+                   help="Run without a search record to test the code. Needs every setting "
+                        "given explicitly; all outputs are stamped as a code check.")
+    p.add_argument("--n-components", type=int, default=None, help="Code checks only.")
+    p.add_argument("--n-neighbors", type=int, default=None, help="Code checks only.")
+    p.add_argument("--min-dist", type=float, default=None, help="Code checks only.")
+    p.add_argument("--k-min", type=int, default=None, help="Code checks only.")
+    p.add_argument("--k-max", type=int, default=None, help="Code checks only.")
     p.add_argument("--k-from", default=None, help="run_record.json whose K this run uses.")
     p.add_argument("--final-seeds", nargs="+", type=int, default=DEFAULT_FINAL_SEEDS)
     p.add_argument("--output-dir", required=True)
