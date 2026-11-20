@@ -27,11 +27,18 @@ One run is one reference variant and one seed set:
    the consensus space; the same again after shifting the probe vectors to
    the reference mean (a sensitivity check);
 7. a 2-D layout of the consensus space for plots only (UMAP fit on the
-   reference coordinates; probes placed with its ``transform``).
+   reference coordinates; probes placed with its ``transform``);
+8. for every probe, its distance to the nearest reference passage and
+   whether REAP's conformal filter keeps it, both strictly (inside its
+   reference cluster) and with the package's default location correction.
+   Probes far outside the reference are extrapolated by the head, so their
+   cluster assignment is not meaningful on its own.
 
 Outputs in ``--output-dir``: ``reference.npz``, ``centroids.npy``,
-``probe_<name>.npz``, ``head_cv.json``, ``run_record.json`` and
-``bundle.json``.
+``probe_<name>.npz``, ``head.pt`` (head weights), ``head_cv.json``, the
+long tables ``reference_labels.csv``, ``probe_assignments.csv``,
+``clusters.csv``, ``layout_2d.csv`` and ``probe_placement.csv``,
+``run_record.json`` and ``bundle.json``.
 
 Usage::
 
@@ -100,6 +107,8 @@ HEAD_SETTINGS: dict[str, Any] = {
     "weight_decay": 1e-4, "device": "cpu",
 }
 HEAD_SEED = 42
+# Conformal filter significance level: the package default (protocol §16.a).
+FILTER_ALPHA = 0.01
 # Rows count as unit-length when every norm is within this of 1 (float32 storage).
 UNIT_NORM_TOLERANCE = 1e-3
 
@@ -240,6 +249,29 @@ def get_final_step_repeats(D: np.ndarray, k: int, k_range: list[int], settings: 
                              "max": float(max(aris)), "n_pairs": len(aris)}}
 
 
+def get_placement(Y_ref: np.ndarray, labels: np.ndarray, Y_probe: np.ndarray,
+                  probe_labels: np.ndarray) -> dict[str, np.ndarray]:
+    """How far each probe lands from the reference, and whether the conformal filter keeps it.
+
+    ``nearest_reference_distance`` is the distance to the closest reference
+    passage in the consensus space. ``accepted_strict`` uses the filter
+    without location correction (is the probe inside its reference cluster?);
+    ``accepted_pooled`` uses the package default, which re-centres each
+    cluster on its probes and so tolerates a shift between corpora.
+    """
+    from reap.filter import apply as apply_filter
+    from reap.filter import calibrate
+
+    distance = NearestNeighbors(n_neighbors=1).fit(Y_ref).kneighbors(Y_probe)[0][:, 0]
+    out = {"nearest_reference_distance": distance}
+    for key, method in (("accepted_strict", "mahalanobis_no_correction"),
+                        ("accepted_pooled", "mahalanobis_pooled")):
+        calibration = calibrate(Y_ref, labels, Y_probe, probe_labels, alpha=FILTER_ALPHA,
+                                method=method)
+        out[key] = apply_filter(Y_probe, probe_labels, calibration)
+    return out
+
+
 def get_probe_rows(name: str, p_ids: np.ndarray, Y_ref: np.ndarray, repeat_labels: np.ndarray,
                    Yp: np.ndarray, Yp_shift: np.ndarray, variant: str, seed_set: str,
                    final_seeds: list[int]) -> list[tuple[Any, ...]]:
@@ -354,6 +386,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     probes: dict[str, Any] = {}
     probe_rows: list[tuple[Any, ...]] = []
     layout_rows: list[tuple[Any, ...]] = []
+    placement_rows: list[tuple[Any, ...]] = []
     for item in args.probe:
         name, _, path = item.partition("=")
         p_ids, Xp = get_embeddings(Path(path))
@@ -373,11 +406,25 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                                      args.label, args.seed_set, list(args.final_seeds))
         layout_rows += [(i, "probe", name, float(x), float(y)) for i, (x, y)
                         in zip(p_ids, layout_p)]
-        probes[name] = {"n": int(len(p_ids)), "input_sha256": _sha256(Xp),
-                        "agreement_centroid_vs_knn": float(np.mean(
-                            a["nearest_centroid"] == a["knn_vote"]))}
+        placement = get_placement(Y, labels, Yp, a["knn_vote"])
+        placement_rows += [(i, name, args.label, args.seed_set, float(d), bool(s), bool(p))
+                           for i, d, s, p in zip(p_ids, placement["nearest_reference_distance"],
+                                                 placement["accepted_strict"],
+                                                 placement["accepted_pooled"])]
+        probes[name] = {
+            "n": int(len(p_ids)), "input_sha256": _sha256(Xp),
+            "agreement_centroid_vs_knn": float(np.mean(a["nearest_centroid"] == a["knn_vote"])),
+            "nearest_reference_distance_median": float(
+                np.median(placement["nearest_reference_distance"])),
+            "accepted_strict_share": float(np.mean(placement["accepted_strict"])),
+            "accepted_pooled_share": float(np.mean(placement["accepted_pooled"])),
+        }
     write_long_tables(out, ids, repeats["labels"], np.asarray(layout.embedding_), probe_rows,
                       layout_rows, args.label, args.seed_set, list(args.final_seeds))
+    _write_csv(out / "probe_placement.csv",
+               ["id", "probe_set", "variant", "seed_set", "nearest_reference_distance",
+                "accepted_strict", "accepted_pooled"], placement_rows)
+    model.save(str(out / "head.pt"))
     (out / "head_cv.json").write_text(json.dumps(
         {"cv_metrics": head["cv_metrics"], "final_metrics": head["final_metrics"],
          "settings": HEAD_SETTINGS, "seed": HEAD_SEED}, indent=2, default=float) + "\n",
@@ -391,6 +438,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                                "silhouette_k_per_seed": repeats["silhouette_k_per_seed"],
                                "pairwise_ari_at_k": repeats["pairwise_ari"]},
         "knn_vote_k": KNN_VOTE_K, "probes": probes,
+        "reference_nearest_neighbour_distance_median": float(np.median(
+            NearestNeighbors(n_neighbors=2).fit(Y).kneighbors(Y)[0][:, 1])),
+        "filter": {"alpha": FILTER_ALPHA, "labels": "knn_vote at final seed 42",
+                   "strict": "mahalanobis_no_correction", "pooled": "mahalanobis_pooled"},
         "seconds": {"map_and_repeats": t_map, "head": t_head,
                     "total": time.monotonic() - t0},
     }

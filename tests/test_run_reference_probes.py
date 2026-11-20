@@ -81,6 +81,12 @@ def test_driver_end_to_end(inputs: dict[str, Path], tmp_path: Path) -> None:
     assert len(list(csv.DictReader((out_a / "reference_labels.csv").open()))) == 2 * n_ps
     assert len(list(csv.DictReader((out_a / "layout_2d.csv").open()))) == n_ps + N_PROBE
     assert "cv_metrics" in json.loads((out_a / "head_cv.json").read_text())
+    placement = list(csv.DictReader((out_a / "probe_placement.csv").open()))
+    assert len(placement) == N_PROBE
+    assert all(float(r["nearest_reference_distance"]) >= 0 for r in placement)
+    assert {r["accepted_strict"] for r in placement} <= {"True", "False"}
+    assert (out_a / "head.pt").exists()
+    assert record["probes"]["calls"]["accepted_strict_share"] <= 1.0
     assert read_repro_bundle(out_a / "bundle.json").run_status == "completed"
 
     out_b = tmp_path / "B"
