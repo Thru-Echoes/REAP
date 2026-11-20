@@ -26,6 +26,7 @@ pytest.importorskip("torch")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
+import generate_final_step_seeds as gen  # noqa: E402  # pyright: ignore[reportMissingImports]
 import run_reference_probes as driver  # noqa: E402  # pyright: ignore[reportMissingImports]
 import search_record as sr  # noqa: E402  # pyright: ignore[reportMissingImports]
 
@@ -59,8 +60,11 @@ def inputs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     _write_record(root / "search_ps.json", X_ps)
     _, X_pw = driver.get_reference(root / "ref.npz", root / "table.csv", ["corner=PW"])
     _write_record(root / "search_pw.json", X_pw)
+    assert gen.main(["--output", str(root / "seeds.json"), "--manifest",
+                     str(REPO_ROOT / "manuscript" / "seeds" / "seed_manifest.json")]) == 0
     return {"root": root, "ref": root / "ref.npz", "table": root / "table.csv", "probe": probe,
-            "record": root / "search_ps.json", "other_record": root / "search_pw.json"}
+            "record": root / "search_ps.json", "other_record": root / "search_pw.json",
+            "seeds": root / "seeds.json"}
 
 
 def _write_record(path: Path, X: np.ndarray) -> None:
@@ -81,7 +85,8 @@ def _args(inputs: dict[str, Path], out: Path, seed_set: str, extra: list[str]) -
     return ["--label", "toy_ps", "--reference", str(inputs["ref"]),
             "--reference-table", str(inputs["table"]), "--where", "corner=PS",
             "--probe", f"calls={inputs['probe']}", "--seed-set", seed_set, "--n-seeds", "3",
-            "--final-seeds", "42", "0", "--output-dir", str(out), *extra]
+            "--final-step-seeds", str(inputs["seeds"]),
+            "--final-seeds", "11", "12", "--output-dir", str(out), *extra]
 
 
 def test_driver_end_to_end_from_a_search_record(inputs: dict[str, Path], tmp_path: Path) -> None:
@@ -108,6 +113,12 @@ def test_driver_end_to_end_from_a_search_record(inputs: dict[str, Path], tmp_pat
     assert len(list(csv.DictReader((out_a / "layout_2d.csv").open()))) == n_ps + N_PROBE
     placement = list(csv.DictReader((out_a / "probe_placement.csv").open()))
     assert len(placement) == N_PROBE
+    assert {r["inside_reference"] for r in placement} <= {"True", "False"}
+    cutoff = record["inside_cutoff"]
+    for r in placement:
+        inside = float(r["nearest_reference_distance"]) <= cutoff
+        assert inside == (r["inside_reference"] == "True")
+    assert record["final_step_repeats"]["seeds_source"]["final_seeds_overridden"] is True
     assert (out_a / "head.pt").exists()
     assert "cv_metrics" in json.loads((out_a / "head_cv.json").read_text())
     bundle = read_repro_bundle(out_a / "bundle.json")
@@ -177,6 +188,25 @@ def test_missing_reference_ids_raise(inputs: dict[str, Path], tmp_path: Path) ->
     args = _args(inputs, tmp_path / "out", "A", ["--search-record", str(inputs["record"])])
     args[args.index(str(inputs["table"]))] = str(table)
     with pytest.raises(ValueError, match="no vector"):
+        driver.main(args)
+
+
+def test_final_step_seeds_are_drawn_once_and_rederivable(inputs: dict[str, Path]) -> None:
+    """The seed file re-derives from its entropy, avoids the manifest's sets, is never redrawn."""
+    final, head = driver.get_final_step_seeds(inputs["seeds"])
+    record = json.loads(inputs["seeds"].read_text())
+    manifest = REPO_ROOT / "manuscript" / "seeds" / "seed_manifest.json"
+    exclude = gen.get_excluded(manifest)
+    assert not (set(final) | {head}) & exclude
+    assert gen.get_seeds(int(record["provenance"]["entropy"]), 11, exclude) == final + [head]
+    assert gen.main(["--output", str(inputs["seeds"]), "--manifest", str(manifest)]) == 1
+
+
+def test_refuses_to_run_without_a_seed_file(inputs: dict[str, Path], tmp_path: Path) -> None:
+    """A missing seed file stops the run: seeds are never constants."""
+    args = _args(inputs, tmp_path / "out", "A", ["--search-record", str(inputs["record"])])
+    args[args.index(str(inputs["seeds"]))] = str(tmp_path / "missing.json")
+    with pytest.raises(FileNotFoundError, match="never constants"):
         driver.main(args)
 
 

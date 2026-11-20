@@ -17,15 +17,20 @@ one is ``--code-check``, which needs every setting given explicitly and
 stamps every output as a code check (``CODE_CHECK.txt``, and ``code_check``
 in the record files); nothing may be read from such outputs.
 
+Seeds are never constants: the final step's ten seeds and the head's seed
+come from a seed file drawn once (``--final-step-seeds``; written by
+``generate_final_step_seeds.py``).
+
 One run is one reference variant and one seed set:
 
 1. the per-seed UMAP maps of the seed set, their averaged distance matrix,
-   and REAP's final map at seed 42 (the package's own functions);
+   and REAP's final map at the first final-step seed (the package's own
+   functions);
 2. K: fixed by the search record, or chosen by the record's rule on this
-   run's seed-42 map (on Set A this is protocol §9's rule), or read from a
+   run's main map (on Set A this is protocol §9's rule), or read from a
    Set A run made with the same search (``--k-from``), so sets B and C use
    Set A's K;
-3. consensus labels (k-means at K, seed 42) and their centroids;
+3. consensus labels (k-means at K, first final-step seed) and their centroids;
 4. the final step repeated under each final seed (map, k-means at the same
    K, and the K silhouette would pick), with the pairwise ARI between
    repeats, because REAP's labels move with the final seed;
@@ -54,6 +59,7 @@ Usage::
     python scripts/run_reference_probes.py --label presidential_ps_e5 \\
         --reference <embeddings> --reference-table <passages.csv> --where corner=PS \\
         --search-record <search record for these rows> \\
+        --final-step-seeds <seed file from generate_final_step_seeds.py> \\
         --probe calls=<embeddings> --probe reports=<embeddings> \\
         --seed-set A --output-dir <folder>
     python scripts/run_reference_probes.py ... --seed-set B --k-from <set A folder>/run_record.json
@@ -113,10 +119,10 @@ logger = logging.getLogger(__name__)
 
 SEED_MANIFEST_RELPATH = "manuscript/seeds/seed_manifest.json"
 PROTOCOL_VERSION = "1.6"
-# REAP's final step uses seed 42 for the final map and k-means (the default
-# random_state of get_consensus_embedding and the benchmark's clustering).
-FINAL_SEED = 42
-DEFAULT_FINAL_SEEDS = [FINAL_SEED, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+# Seeds are drawn once at random and recorded, never constants: the final
+# step's ten seeds (the first seeds the main map and its k-means) and the
+# projection head's seed come from a seed file written once by
+# scripts/generate_final_step_seeds.py and passed with --final-step-seeds.
 # Neighbours in the k-NN vote; matches the trustworthiness neighbourhood the
 # benchmark uses (15).
 KNN_VOTE_K = 15
@@ -126,7 +132,6 @@ HEAD_SETTINGS: dict[str, Any] = {
     "batch_size": 64, "max_epochs": 500, "patience": 50, "lr": 1e-3,
     "weight_decay": 1e-4, "device": "cpu",
 }
-HEAD_SEED = 42
 # Conformal filter significance level: the package default (protocol §16.a).
 FILTER_ALPHA = 0.01
 # Rows count as unit-length when every norm is within this of 1 (float32 storage).
@@ -269,6 +274,18 @@ def get_final_step_repeats(D: np.ndarray, k: int, k_range: list[int], settings: 
                              "max": float(max(aris)), "n_pairs": len(aris)}}
 
 
+def get_inside_cutoff(Y_ref: np.ndarray) -> float:
+    """How close a probe must land to count as inside the reference.
+
+    The (1 - alpha) quantile of each reference passage's distance to its
+    nearest other reference passage (leave-one-out), with the filter's alpha:
+    a probe farther from every reference passage than 99% of reference
+    passages are from each other is outside the reference.
+    """
+    loo = NearestNeighbors(n_neighbors=2).fit(Y_ref).kneighbors(Y_ref)[0][:, 1]
+    return float(np.quantile(loo, 1.0 - FILTER_ALPHA))
+
+
 def get_placement(Y_ref: np.ndarray, labels: np.ndarray, Y_probe: np.ndarray,
                   probe_labels: np.ndarray) -> dict[str, np.ndarray]:
     """How far each probe lands from the reference, and whether the conformal filter keeps it.
@@ -283,7 +300,8 @@ def get_placement(Y_ref: np.ndarray, labels: np.ndarray, Y_probe: np.ndarray,
     from reap.filter import calibrate
 
     distance = NearestNeighbors(n_neighbors=1).fit(Y_ref).kneighbors(Y_probe)[0][:, 0]
-    out = {"nearest_reference_distance": distance}
+    out = {"nearest_reference_distance": distance,
+           "inside_reference": distance <= get_inside_cutoff(Y_ref)}
     for key, method in (("accepted_strict", "mahalanobis_no_correction"),
                         ("accepted_pooled", "mahalanobis_pooled")):
         calibration = calibrate(Y_ref, labels, Y_probe, probe_labels, alpha=FILTER_ALPHA,
@@ -297,9 +315,9 @@ def get_probe_rows(name: str, p_ids: np.ndarray, Y_ref: np.ndarray, repeat_label
                    final_seeds: list[int]) -> list[tuple[Any, ...]]:
     """Long-format probe assignments for every final seed, rule and shift.
 
-    Probe positions come from the head trained on the seed-42 map. Under final
+    Probe positions come from the head trained on the main map. Under final
     seed s only the reference labels change (the repeat's k-means labels), so
-    the centroids and the k-NN vote use those labels in the same seed-42 space.
+    the centroids and the k-NN vote use those labels in the same main-map space.
     """
     rows: list[tuple[Any, ...]] = []
     for s, lab in zip(final_seeds, repeat_labels):
@@ -410,7 +428,25 @@ def get_run_settings(args: argparse.Namespace, X: np.ndarray) -> RunSettings:
         "exact input, or --code-check for a run whose outputs are not results")
 
 
-def get_k(args: argparse.Namespace, run_settings: RunSettings, Y: np.ndarray) -> tuple[int, str]:
+def get_final_step_seeds(path: Path) -> tuple[list[int], int]:
+    """The drawn-once final-step seeds and head seed from a seed file.
+
+    Raises ``FileNotFoundError`` when the file is missing and ``ValueError``
+    when it does not hold ten distinct final-step seeds and a separate head
+    seed. Side effects: reads the file.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"{path} is missing: seeds are drawn once, never constants")
+    record = json.loads(path.read_text(encoding="utf-8"))
+    final = [int(x) for x in record["final_step_seeds"]]
+    head = int(record["head_seed"])
+    if len(final) != 10 or len(set(final)) != 10 or head in final:
+        raise ValueError(f"{path}: expected ten distinct final-step seeds and a separate head seed")
+    return final, head
+
+
+def get_k(args: argparse.Namespace, run_settings: RunSettings, Y: np.ndarray,
+          main_seed: int) -> tuple[int, str]:
     """K and its rule: fixed by the search, reused from Set A, or chosen here by silhouette.
 
     ``--k-from`` must point at a run backed by the same search (or, for a code
@@ -428,9 +464,9 @@ def get_k(args: argparse.Namespace, run_settings: RunSettings, Y: np.ndarray) ->
         return int(earlier["k"]), f"frozen from {Path(args.k_from).parent.name}"
     if run_settings.fixed_k is not None:
         return run_settings.fixed_k, f"fixed by the search: {run_settings.k_rule}"
-    k = int(find_best_k(Y, run_settings.k_range, random_state=FINAL_SEED).best_k)
-    rule = run_settings.k_rule or "silhouette on this run's seed-42 map (code check)"
-    return k, f"{rule}; chosen on this run's seed-42 map"
+    k = int(find_best_k(Y, run_settings.k_range, random_state=main_seed).best_k)
+    rule = run_settings.k_rule or "silhouette on this run's main map (code check)"
+    return k, f"{rule}; chosen on this run's main map"
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
@@ -449,6 +485,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if args.n_seeds is not None:
         seeds = seeds[: args.n_seeds]
     run_settings = get_run_settings(args, X)
+    seeds_file = Path(args.final_step_seeds)
+    drawn_final, head_seed = get_final_step_seeds(seeds_file)
+    final_seeds = list(args.final_seeds) if args.final_seeds else drawn_final
+    seeds_source = {"file": str(seeds_file),
+                    "file_sha256": hashlib.sha256(seeds_file.read_bytes()).hexdigest(),
+                    "final_seeds_overridden": bool(args.final_seeds)}
+    main_seed = final_seeds[0]
     settings = run_settings.umap
     k_range = run_settings.k_range
     if run_settings.code_check:
@@ -457,15 +500,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 " (CODE CHECK)" if run_settings.code_check else "")
     maps = get_multi_seed_embeddings(X, seeds, **settings, metric="cosine")
     D = get_consensus_distance_matrix(maps)
-    Y, _ = get_consensus_embedding(D, **settings, random_state=FINAL_SEED)
-    k, k_rule = get_k(args, run_settings, Y)
-    labels = np.asarray(KMeans(n_clusters=k, random_state=FINAL_SEED,
+    Y, _ = get_consensus_embedding(D, **settings, random_state=main_seed)
+    k, k_rule = get_k(args, run_settings, Y, main_seed)
+    labels = np.asarray(KMeans(n_clusters=k, random_state=main_seed,
                                n_init="auto").fit_predict(Y), dtype=np.int64)
     centroids = get_centroids(Y, labels)
-    repeats = get_final_step_repeats(D, k, k_range, settings, list(args.final_seeds))
+    repeats = get_final_step_repeats(D, k, k_range, settings, final_seeds)
     t_map = time.monotonic() - t0
 
-    set_head_seeds(HEAD_SEED)
+    set_head_seeds(head_seed)
     head = train_projection_head(X=X, Y=Y.astype(np.float32), labels=labels, seed=None,
                                  **HEAD_SETTINGS)
     model = head["model"]
@@ -474,7 +517,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     import umap
 
     layout = umap.UMAP(n_components=2, n_neighbors=settings["n_neighbors"],
-                       min_dist=settings["min_dist"], random_state=FINAL_SEED).fit(Y)
+                       min_dist=settings["min_dist"], random_state=main_seed).fit(Y)
     _save_arrays(out / "reference.npz", {
         "ids": ids, "consensus": Y, "labels": labels, "repeat_labels": repeats["labels"],
         "layout_2d": np.asarray(layout.embedding_)})
@@ -499,31 +542,34 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             **{f"assign_{k_}": v for k_, v in a.items()},
             **{f"assign_{k_}_mean_shifted": v for k_, v in a_shift.items()}})
         probe_rows += get_probe_rows(name, p_ids, Y, repeats["labels"], Yp, Yp_shift,
-                                     args.label, args.seed_set, list(args.final_seeds))
+                                     args.label, args.seed_set, final_seeds)
         layout_rows += [(i, "probe", name, float(x), float(y)) for i, (x, y)
                         in zip(p_ids, layout_p)]
         placement = get_placement(Y, labels, Yp, a["knn_vote"])
-        placement_rows += [(i, name, args.label, args.seed_set, float(d), bool(s), bool(p))
-                           for i, d, s, p in zip(p_ids, placement["nearest_reference_distance"],
-                                                 placement["accepted_strict"],
-                                                 placement["accepted_pooled"])]
+        placement_rows += [
+            (i, name, args.label, args.seed_set, float(d), bool(n), bool(s), bool(p))
+            for i, d, n, s, p in zip(p_ids, placement["nearest_reference_distance"],
+                                     placement["inside_reference"],
+                                     placement["accepted_strict"],
+                                     placement["accepted_pooled"])]
         probes[name] = {
             "n": int(len(p_ids)), "input_sha256": _sha256(Xp),
             "agreement_centroid_vs_knn": float(np.mean(a["nearest_centroid"] == a["knn_vote"])),
             "nearest_reference_distance_median": float(
                 np.median(placement["nearest_reference_distance"])),
+            "inside_reference_share": float(np.mean(placement["inside_reference"])),
             "accepted_strict_share": float(np.mean(placement["accepted_strict"])),
             "accepted_pooled_share": float(np.mean(placement["accepted_pooled"])),
         }
     write_long_tables(out, ids, repeats["labels"], np.asarray(layout.embedding_), probe_rows,
-                      layout_rows, args.label, args.seed_set, list(args.final_seeds))
+                      layout_rows, args.label, args.seed_set, final_seeds)
     _write_csv(out / "probe_placement.csv",
                ["id", "probe_set", "variant", "seed_set", "nearest_reference_distance",
-                "accepted_strict", "accepted_pooled"], placement_rows)
+                "inside_reference", "accepted_strict", "accepted_pooled"], placement_rows)
     model.save(str(out / "head.pt"))
     (out / "head_cv.json").write_text(json.dumps(
         {"cv_metrics": head["cv_metrics"], "final_metrics": head["final_metrics"],
-         "settings": HEAD_SETTINGS, "seed": HEAD_SEED}, indent=2, default=float) + "\n",
+         "settings": HEAD_SETTINGS, "seed": head_seed}, indent=2, default=float) + "\n",
         encoding="utf-8")
     record = {
         "label": args.label, "seed_set": args.seed_set, "n_reference": int(len(ids)),
@@ -533,13 +579,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "reference_sha256": _sha256(X), "settings": settings,
         "k_range": [min(k_range), max(k_range)],
         "k": k, "k_rule": k_rule, "cluster_sizes": np.bincount(labels).tolist(),
-        "final_step_repeats": {"final_seeds": list(args.final_seeds),
+        "final_step_repeats": {"final_seeds": final_seeds,
+                               "seeds_source": seeds_source,
                                "silhouette_k_per_seed": repeats["silhouette_k_per_seed"],
                                "pairwise_ari_at_k": repeats["pairwise_ari"]},
         "knn_vote_k": KNN_VOTE_K, "probes": probes,
+        "inside_cutoff": get_inside_cutoff(Y),
         "reference_nearest_neighbour_distance_median": float(np.median(
             NearestNeighbors(n_neighbors=2).fit(Y).kneighbors(Y)[0][:, 1])),
-        "filter": {"alpha": FILTER_ALPHA, "labels": "knn_vote at final seed 42",
+        "filter": {"alpha": FILTER_ALPHA, "labels": "knn_vote on the main map",
                    "strict": "mahalanobis_no_correction", "pooled": "mahalanobis_pooled"},
         "seconds": {"map_and_repeats": t_map, "head": t_head,
                     "total": time.monotonic() - t0},
@@ -552,7 +600,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         f"{args.label}/{args.seed_set}", dataset=args.label,
         dataset_version=args.dataset_version,
         dataset_sha256=_sha256(X), encoder=args.encoder, seed_set=args.seed_set,
-        seeds=seeds + list(args.final_seeds) + [HEAD_SEED], seed_manifest=SEED_MANIFEST_RELPATH,
+        seeds=seeds + list(final_seeds) + [head_seed], seed_manifest=SEED_MANIFEST_RELPATH,
         config={"umap": settings, "k_range": [min(k_range), max(k_range)], "k": k,
                 "k_rule": k_rule, "code_check": run_settings.code_check,
                 "parameter_source": run_settings.source,
@@ -593,7 +641,11 @@ def _get_parser() -> argparse.ArgumentParser:
     p.add_argument("--k-min", type=int, default=None, help="Code checks only.")
     p.add_argument("--k-max", type=int, default=None, help="Code checks only.")
     p.add_argument("--k-from", default=None, help="run_record.json whose K this run uses.")
-    p.add_argument("--final-seeds", nargs="+", type=int, default=DEFAULT_FINAL_SEEDS)
+    p.add_argument("--final-step-seeds", required=True,
+                   help="Seed file written once by scripts/generate_final_step_seeds.py.")
+    p.add_argument("--final-seeds", nargs="+", type=int, default=None,
+                   help="Override the drawn final-step seeds (tests only); the first "
+                        "seeds the main map.")
     p.add_argument("--output-dir", required=True)
     return p
 
