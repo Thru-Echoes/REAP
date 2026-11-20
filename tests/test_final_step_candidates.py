@@ -156,12 +156,15 @@ def test_pilot_end_to_end_on_synthetic(tmp_path: Path) -> None:
     assert pilot.main(["--dataset", "synthetic", "--combine", "--research-root", str(tmp_path),
                        "--output-dir", str(out)]) == 0
     summary = json.loads((out / "pilot_summary.json").read_text())
-    assert set(summary["criteria"]) == set(pilot.CANDIDATES)
-    for name in pilot.CANDIDATES:
-        margin = summary["criteria"][name]["bootstrap_margin_over_best_baseline"]
-        assert margin["lower_95"] <= margin["upper_95"]
-    sources = set(pilot.get_label_sources())
+    expected = {f"{c}/S" for c in pilot.CANDIDATES} | {
+        f"{c}/F" for c in pilot.CANDIDATES if c != "c"}
+    assert set(summary["criteria"]) == expected
+    for result in summary["criteria"].values():
+        assert result["bootstrap_margin"]["lower_95"] <= result["bootstrap_margin"]["upper_95"]
+    n_sources = len(pilot.get_label_sources())
     rows = (out / "between_set.csv").read_text().strip().splitlines()[1:]
-    assert len(rows) == 3 * len(sources)
+    assert len(rows) == len(pilot.FINAL_SEEDS) * (n_sources + (n_sources - 1))
     fixed = (out / "fixed_k.csv").read_text().strip().splitlines()[1:]
     assert len(fixed) == len(pilot.FIXED_KS) * 7
+    record = json.loads((out / "set_A" / "set_record.json").read_text())
+    assert summary["frozen_k"] == record["k_rule_S_per_seed"]["reap"][0]
