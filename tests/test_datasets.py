@@ -292,9 +292,7 @@ def test_build_ai_art_snapshot_roundtrip(tmp_path: Path) -> None:
 
 
 def test_build_korean_forest_snapshot_roundtrip(tmp_path: Path) -> None:
-    src = _resolve_source_path(
-        "REAP_KOREAN_FOREST_SOURCE_PATH", _KOREAN_FOREST_FALLBACKS
-    )
+    src = _resolve_source_path("REAP_KOREAN_FOREST_SOURCE_PATH", _KOREAN_FOREST_FALLBACKS)
     if src is None:
         pytest.skip(
             "Korean forest source project not found. Set "
@@ -306,3 +304,32 @@ def test_build_korean_forest_snapshot_roundtrip(tmp_path: Path) -> None:
     snap = load_snapshot("korean_forest", KF_VERSION, cache_dir=tmp_path)
     assert snap.embeddings.shape == (KF_N, KF_DIM)
     assert snap.labels is not None
+
+
+def test_calls_presidential_loader_reads_each_encoding_by_name(tmp_path: Path) -> None:
+    """Each encoding is its own snapshot; the loader finds it by encoder and version."""
+    import numpy as np
+
+    from reap.datasets import load_calls_presidential
+    from reap.datasets._cache import compute_payload_sha256, write_snapshot
+    from reap.datasets._schema import DatasetMetadata, DatasetSnapshot
+    from reap.datasets.calls_presidential import DATASET_NAMES
+
+    for enc, dim in (("e5", 4), ("openai", 6)):
+        emb = np.random.default_rng(0).normal(size=(5, dim)).astype(np.float32)
+        texts = [f"passage {i}" for i in range(5)]
+        meta = DatasetMetadata(
+            name=DATASET_NAMES[enc],
+            version="smoke-1000",
+            n_samples=5,
+            embedding_dim=dim,
+            embedding_model=enc,
+            preprocessing_version="test",
+            sha256=compute_payload_sha256(emb, None, texts),
+            license="NOASSERTION",
+        )
+        write_snapshot(DatasetSnapshot(embeddings=emb, texts=texts, metadata=meta), tmp_path)
+        got = load_calls_presidential(enc, "smoke-1000", cache_dir=tmp_path)
+        assert got.embeddings.shape == (5, dim) and got.labels is None
+    with pytest.raises(KeyError):
+        load_calls_presidential("minilm", "smoke-1000", cache_dir=tmp_path)

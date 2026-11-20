@@ -65,6 +65,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime
+import functools
 import json
 import logging
 import platform
@@ -88,8 +89,12 @@ from reap.benchmarks import (  # noqa: E402
 from reap.datasets import (  # noqa: E402
     DatasetSnapshot,
     load_ai_art,
+    load_calls_presidential,
     load_korean_forest,
     load_twenty_newsgroups_reference,
+)
+from reap.datasets.calls_presidential import (  # noqa: E402
+    DATASET_VERSION as CALLS_PRESIDENTIAL_VERSION,
 )
 from reap.statistics import (  # noqa: E402
     compare_family,
@@ -181,6 +186,25 @@ DATASET_CONFIGS: dict[str, DatasetConfig] = {
         k_range=list(range(5, 21)),
         loader=load_twenty_newsgroups_reference,
     ),
+    # Calls and presidential speech: UMAP settings fixed a priori (umap-learn defaults, 5
+    # dimensions as for AI-art), not tuned; K by the protocol rule over 5..30. One entry per
+    # encoder, plus smaller smoke samples of the same input for sizing runs.
+    **{
+        f"calls_presidential_{enc}{suffix}": DatasetConfig(
+            display_name=f"Calls and presidential speech ({enc}{suffix})",
+            n_components=5,
+            n_neighbors=15,
+            min_dist=0.1,
+            k_range=list(range(5, 31)),
+            loader=functools.partial(load_calls_presidential, enc, version),
+        )
+        for enc in ("e5", "openai")
+        for suffix, version in (
+            ("", CALLS_PRESIDENTIAL_VERSION),
+            ("_smoke1000", "smoke-1000"),
+            ("_smoke2000", "smoke-2000"),
+        )
+    },
     "synthetic": DatasetConfig(
         display_name="Synthetic blobs",
         n_components=5,
