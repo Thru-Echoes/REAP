@@ -185,15 +185,21 @@ decision.
 
 ### (e) What a candidate must meet
 
-On every corpus cell — 20 Newsgroups reference, AI-art, Korean forest, calls
-(e5) and calls (OpenAI) — seed sets A, B and C with 30 seeds each, under
-**both** K rules:
+REAP's claims are about messy data with overlapping groups and about placing
+several datasets in one shared space; it is not claimed to beat the
+baselines on clean, well-separated corpora. The corpora are therefore split:
+AI-art and Korean forest are the **gating** corpora; the 20 Newsgroups
+reference and the calls corpus (e5 and OpenAI) are **no-harm** corpora,
+where the baselines already repeat almost perfectly. On every corpus cell,
+seed sets A, B and C with 30 seeds each, under **both** K rules:
 
-1. **Repeatability.** Its between-set ARI (clause b) is at least the
-   highest between-set ARI among the baselines treated the same way (same K
-   rule, same final-seed variation, and for candidate d the same ten-start
-   clustering): best of N, naive average, Procrustes, BERTopic and parametric
-   UMAP.
+1. **Repeatability.** On the gating corpora, its between-set ARI (clause b)
+   is at least the highest between-set ARI among the baselines treated the
+   same way (same K rule, same final-seed variation, and for candidate d the
+   same ten-start clustering): best of N, naive average, Procrustes, BERTopic
+   and parametric UMAP. On the no-harm corpora, it is at least REAP's current
+   final step under the same K rule and final-seed variation, and its gap to
+   the best baseline is reported.
 2. **Cluster separation.** Its consensus silhouette (Cell D: its labels on
    the display map, euclidean) is no more than 0.05 below REAP's current
    final step on the same corpus, set and K rule, in every set.
@@ -212,18 +218,18 @@ fixed-K sweep; ARI with the expert labels on 20 Newsgroups; wall time and
 peak memory at each corpus's full size.
 
 **Open for ratification.** (i) Naive coordinate averaging is the §3
-strawman, yet on calls (OpenAI) it is the most repeatable method under rule S
-(0.994), which sets criterion 1's bar there. Keep it among the baselines for
-criterion 1, or report it without gating? (ii) Must criterion 1 hold under
-both K rules (as written), or under one named rule?
+strawman; keep it among the baselines for criterion 1 on the gating corpora,
+or report it without gating? (ii) Must criterion 1 hold under both K rules
+(as written), or under one named rule? (iii) Is the gating / no-harm split of
+the corpora as stated?
 
 ### (f) Which candidate, if any
 
 A candidate passes if it meets all three criteria on every corpus cell
 under both K rules. Among passing candidates, the one proposed as REAP's
-final step has the largest smallest margin over the best baseline (criterion
-1, minimum across corpus cells and K rules); a tie goes to the one with the
-lower full-size wall time. If none passes, REAP's final step stays as it is,
+final step has the largest smallest margin over the best baseline on the
+gating corpora (criterion 1, minimum across those cells and K rules); a tie
+goes to the one with the lower full-size wall time. If none passes, REAP's final step stays as it is,
 the result is reported as a negative finding with its numbers, and the
 threats it exposes are added to §11. Every candidate's results are reported
 whether or not it passes.
