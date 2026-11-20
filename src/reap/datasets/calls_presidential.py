@@ -11,8 +11,13 @@ or data of its own.
 
 There are no expert labels: ``labels`` is None.
 
+The first full runs used the input built with the research repository's
+cleaning rule ``cp-clean-v1``; the ``-v3`` versions hold the same sample
+design rebuilt with rule ``cp-clean-v3``, which also corrects which
+presidential passages are the president's own speech.
+
 Exports: ``DATASET_NAMES``, ``DATASET_VERSION``, ``SMOKE_VERSIONS``,
-``load_calls_presidential``.
+``DATASET_VERSION_V3``, ``SMOKE_VERSIONS_V3``, ``load_calls_presidential``.
 """
 
 from __future__ import annotations
@@ -27,10 +32,13 @@ DATASET_NAMES = {
     "e5": "calls_presidential_e5",
     "openai": "calls_presidential_openai",
 }
-# The frozen input of the first full runs.
+# The frozen input of the first full runs (cleaning rule cp-clean-v1).
 DATASET_VERSION = "2026-11-20"
 # Smaller samples of the same input, used to measure time and memory first.
 SMOKE_VERSIONS = ("smoke-1000", "smoke-2000")
+# The same design rebuilt with cleaning rule cp-clean-v3, and its smaller samples.
+DATASET_VERSION_V3 = "2026-11-20-v3"
+SMOKE_VERSIONS_V3 = ("smoke-1000-v3", "smoke-2000-v3")
 
 
 def load_calls_presidential(
@@ -43,7 +51,8 @@ def load_calls_presidential(
     encoder
         ``"e5"`` or ``"openai"`` (``DATASET_NAMES``).
     version
-        Snapshot version: ``DATASET_VERSION`` or one of ``SMOKE_VERSIONS``.
+        Snapshot version: ``DATASET_VERSION``, ``DATASET_VERSION_V3`` or one of
+        ``SMOKE_VERSIONS`` and ``SMOKE_VERSIONS_V3``.
     cache_dir
         Optional override of the REAP cache directory.
 

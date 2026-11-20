@@ -96,6 +96,9 @@ from reap.datasets import (  # noqa: E402
 from reap.datasets.calls_presidential import (  # noqa: E402
     DATASET_VERSION as CALLS_PRESIDENTIAL_VERSION,
 )
+from reap.datasets.calls_presidential import (  # noqa: E402
+    DATASET_VERSION_V3 as CALLS_PRESIDENTIAL_VERSION_V3,
+)
 from reap.statistics import (  # noqa: E402
     compare_family,
     compute_seed_bootstrap_ci,
@@ -188,7 +191,8 @@ DATASET_CONFIGS: dict[str, DatasetConfig] = {
     ),
     # Calls and presidential speech: UMAP settings fixed a priori (umap-learn defaults, 5
     # dimensions as for AI-art), not tuned; K by the protocol rule over 5..30. One entry per
-    # encoder, plus smaller smoke samples of the same input for sizing runs.
+    # encoder, plus smaller smoke samples of the same input for sizing runs; the "_v3" entries
+    # are the input rebuilt with the research repository's cleaning rule cp-clean-v3.
     **{
         f"calls_presidential_{enc}{suffix}": DatasetConfig(
             display_name=f"Calls and presidential speech ({enc}{suffix})",
@@ -203,6 +207,9 @@ DATASET_CONFIGS: dict[str, DatasetConfig] = {
             ("", CALLS_PRESIDENTIAL_VERSION),
             ("_smoke1000", "smoke-1000"),
             ("_smoke2000", "smoke-2000"),
+            ("_v3", CALLS_PRESIDENTIAL_VERSION_V3),
+            ("_v3_smoke1000", "smoke-1000-v3"),
+            ("_v3_smoke2000", "smoke-2000-v3"),
         )
     },
     "synthetic": DatasetConfig(
