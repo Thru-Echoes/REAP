@@ -50,18 +50,23 @@ import datetime
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 # Reuse all the helpers from the paper-grade runner.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from run_paper_benchmark import (  # noqa: E402
     DATASET_CONFIGS,
     SEED_MANIFEST_PATH,
+    DatasetConfig,
     _load_seed_sets,
     _persist_method_artifacts,
     _write_all_methods_summary,
+    add_parameter_arguments,
     compute_between_set_reliability,
     compute_pairwise_tests,
+    get_parameter_settings,
 )
+from search_record import write_code_check_marker  # noqa: E402
 
 # Add src/ for the package imports.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -153,12 +158,16 @@ def run_one_dataset_seed_set_method_only(
     seeds: list[int],
     output_dir: Path,
     method_name: str,
+    cfg: DatasetConfig,
+    k_fixed: int | None,
+    parameter_source: dict[str, Any],
 ) -> BenchmarkResult:
     """Run the benchmark for one (dataset, seed_set) on ONLY ``method_name``.
 
     Mirrors :func:`run_paper_benchmark.run_one_dataset_seed_set` but writes
     the combined CSV via a *merge* rather than overwrite, so the other
-    methods' rows are preserved.
+    methods' rows are preserved. ``cfg`` and ``parameter_source`` come from
+    :func:`run_paper_benchmark.get_parameter_settings` for ``method_name``.
 
     Side effects
     ------------
@@ -166,10 +175,10 @@ def run_one_dataset_seed_set_method_only(
       prior single-method artifacts for that cell).
     - Merges one row into ``results/<dataset>/combined_set_<seed_set>/all_methods.csv``.
     """
-    cfg = DATASET_CONFIGS[dataset_name]
     logger.info(
-        "=== %s / Set %s / method=%s (%d seeds) ===",
+        "=== %s / Set %s / method=%s (%d seeds)%s ===",
         cfg.display_name, seed_set_name, method_name, len(seeds),
+        " CODE CHECK" if parameter_source.get("code_check") else "",
     )
 
     snap: DatasetSnapshot = cfg.loader()
@@ -189,6 +198,7 @@ def run_one_dataset_seed_set_method_only(
         methods=[method_name],
         ground_truth_labels=labels,
         texts=texts,
+        k_fixed=k_fixed,
     )
 
     # Per-method artifacts (no conflict with other methods' subdirs).
@@ -197,7 +207,7 @@ def run_one_dataset_seed_set_method_only(
         method_dir = dataset_root / m.method / f"set_{seed_set_name}"
         _persist_method_artifacts(
             m, artifacts, method_dir, seeds, dataset_name, seed_set_name,
-            cfg, started_at,
+            cfg, started_at, parameter_source,
         )
 
     # Merge into the combined CSV instead of overwriting.
@@ -236,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
         "--skip-reliability", action="store_true",
         help="Skip recomputing between-set reliability + pairwise tests after the sweep.",
     )
+    add_parameter_arguments(parser)
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -261,13 +272,17 @@ def main(argv: list[str] | None = None) -> int:
 
     output_dir = Path(args.output_dir)
     requested_sets = [s.strip() for s in args.seed_sets.split(",") if s.strip()]
+    if "synthetic" in args.dataset:
+        logger.error(
+            "synthetic dataset is not supported here — use run_paper_benchmark.py for that",
+        )
+        return 2
+    resolved = get_parameter_settings(args, method=ONLY_METHOD)
 
     for dataset_name in args.dataset:
-        if dataset_name == "synthetic":
-            logger.error(
-                "synthetic dataset is not supported here — use run_paper_benchmark.py for that",
-            )
-            return 2
+        cfg, k_fixed, parameter_source = resolved[dataset_name]
+        if parameter_source["code_check"]:
+            write_code_check_marker(output_dir / dataset_name)
         for set_name in requested_sets:
             if set_name not in manifest_sets:
                 logger.error(
@@ -281,6 +296,7 @@ def main(argv: list[str] | None = None) -> int:
                 logger.info("--quick: using first %d seeds of Set %s", len(seeds), set_name)
             run_one_dataset_seed_set_method_only(
                 dataset_name, set_name, seeds, output_dir, ONLY_METHOD,
+                cfg, k_fixed, parameter_source,
             )
 
         if not args.skip_reliability:

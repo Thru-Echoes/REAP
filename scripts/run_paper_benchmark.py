@@ -30,27 +30,38 @@ After all three seed sets complete for a dataset, the between-set
 reliability and paired-test tables are computed from the per-set artifacts
 and written to the dataset-level directory.
 
+Parameters
+----------
+REAP has no default parameters. For a result, every dataset needs a
+parameter-search record made on exactly its embeddings
+(``--search-record DATASET=PATH``; see ``scripts/search_record.py``); the
+UMAP settings and K rule are read from it and the table below is not used.
+Without one the script refuses to run, unless ``--code-check`` is given: that
+uses the table's settings, writes ``CODE_CHECK.txt`` in the dataset folder,
+marks every ``bundle.json`` as a code check, and nothing may be read from the
+outputs. The map-based baselines share REAP's per-seed maps, so they run
+with the same searched UMAP settings.
+
 Usage
 -----
 Korean forest, all three seed sets::
 
-    python scripts/run_paper_benchmark.py --dataset korean_forest
+    python scripts/run_paper_benchmark.py --dataset korean_forest \\
+        --search-record korean_forest=<search record>
 
-AI-art, all three seed sets::
+AI-art and Korean forest::
 
-    python scripts/run_paper_benchmark.py --dataset ai_art
+    python scripts/run_paper_benchmark.py --dataset korean_forest --dataset ai_art \\
+        --search-record korean_forest=<record> --search-record ai_art=<record>
 
-Both datasets::
+Code check (first 5 seeds of Set A only, no BERTopic; not a result)::
 
-    python scripts/run_paper_benchmark.py --dataset korean_forest --dataset ai_art
+    python scripts/run_paper_benchmark.py --dataset korean_forest --quick --skip-bertopic \\
+        --code-check
 
-Quick smoke (first 5 seeds of Set A only, no BERTopic)::
+Synthetic blobs (no real data needed; a code check)::
 
-    python scripts/run_paper_benchmark.py --dataset korean_forest --quick --skip-bertopic
-
-Synthetic blobs (no real data needed)::
-
-    python scripts/run_paper_benchmark.py --dataset synthetic --skip-bertopic
+    python scripts/run_paper_benchmark.py --dataset synthetic --skip-bertopic --code-check
 
 Side effects
 ------------
@@ -64,7 +75,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import dataclasses
 import datetime
+import hashlib
 import json
 import logging
 import platform
@@ -77,6 +90,13 @@ from typing import Any
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from search_record import (  # noqa: E402
+    get_checked_record,
+    get_input_sha256,
+    write_code_check_marker,
+)
 
 from reap.benchmarks import (  # noqa: E402
     ALL_METHODS,
@@ -382,8 +402,11 @@ def _write_bundle_json(
     peak_memory_mb: float | None,
     config: DatasetConfig,
     started_at: str,
+    parameter_source: dict[str, Any],
 ) -> None:
     bundle = {
+        "code_check": bool(parameter_source.get("code_check")),
+        "parameter_source": parameter_source,
         "git_commit": _get_git_commit(),
         "script": "scripts/run_paper_benchmark.py",
         "method": method,
@@ -542,6 +565,7 @@ def _persist_method_artifacts(
     seed_set_name: str,
     config: DatasetConfig,
     started_at: str,
+    parameter_source: dict[str, Any],
 ) -> None:
     """Write every artifact for one (dataset, method, seed_set) cell."""
     method_dir.mkdir(parents=True, exist_ok=True)
@@ -580,7 +604,81 @@ def _persist_method_artifacts(
         peak_memory_mb=method.peak_memory_mb,
         config=config,
         started_at=started_at,
+        parameter_source=parameter_source,
     )
+
+
+def add_parameter_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add ``--search-record DATASET=PATH`` (repeatable) and ``--code-check`` to a CLI."""
+    parser.add_argument(
+        "--search-record", action="append", default=[],
+        help="DATASET=PATH: parameter-search record made on exactly that dataset's "
+             "embeddings. Required for every dataset unless --code-check.",
+    )
+    parser.add_argument(
+        "--code-check", action="store_true",
+        help="Run with the script's table settings to test the code; every output is "
+             "stamped as a code check and is not a result.",
+    )
+
+
+def get_parameter_settings(
+    args: argparse.Namespace, method: str,
+) -> dict[str, tuple[DatasetConfig, int | None, dict[str, Any]]]:
+    """Resolve every requested dataset's settings for ``method`` before anything runs.
+
+    Raises ``ValueError`` for a malformed ``--search-record``, a record for a
+    dataset that is not requested, or a dataset with neither a record nor
+    ``--code-check``.
+    """
+    records: dict[str, Path] = {}
+    for item in args.search_record:
+        name, _, path = item.partition("=")
+        if not path:
+            raise ValueError(f"expected DATASET=PATH, got {item!r}")
+        records[name] = Path(path)
+    unknown = sorted(set(records) - set(args.dataset))
+    if unknown:
+        raise ValueError(f"search records given for datasets not being run: {unknown}")
+    return {name: get_resolved_config(name, records.get(name), args.code_check, method)
+            for name in args.dataset}
+
+
+def get_resolved_config(
+    dataset_name: str, search_record: Path | None, code_check: bool, method: str = "reap",
+) -> tuple[DatasetConfig, int | None, dict[str, Any]]:
+    """Settings for one dataset: from a search record on exactly its input, or a code check.
+
+    REAP has no default parameters. With a search record, UMAP settings and
+    the K rule come from it, and it must have been made on exactly this
+    dataset's embeddings and for ``method``. With ``code_check`` the table's
+    settings are used and every output is stamped as a code check. Anything
+    else raises ``ValueError``. Returns (config, K fixed by the search or
+    None, a record of where the settings came from). Side effects: loads the
+    dataset to hash it.
+    """
+    base = DATASET_CONFIGS[dataset_name]
+    if search_record is not None and code_check:
+        raise ValueError("give a search record or --code-check, not both")
+    if search_record is not None:
+        snap: DatasetSnapshot = base.loader()
+        X = np.asarray(snap.embeddings)
+        record = get_checked_record(search_record, input_sha256=get_input_sha256(X),
+                                    n_rows=len(X), method=method)
+        cfg = dataclasses.replace(
+            base, n_components=record.n_components, n_neighbors=record.n_neighbors,
+            min_dist=record.min_dist, k_range=list(record.k_range))
+        return cfg, record.k, {
+            "code_check": False, "search_record": str(search_record),
+            "search_run_id": record.search.run_id, "k_rule": record.k_rule,
+            "search_record_sha256": hashlib.sha256(search_record.read_bytes()).hexdigest()}
+    if code_check:
+        return base, None, {"code_check": True,
+                            "note": "settings from the script's table; not a result"}
+    raise ValueError(
+        f"REAP has no default parameters: give --search-record {dataset_name}=<record> from a "
+        "parameter search on this dataset, or --code-check for a run whose outputs are not "
+        "results")
 
 
 def run_one_dataset_seed_set(
@@ -589,12 +687,18 @@ def run_one_dataset_seed_set(
     seeds: list[int],
     output_dir: Path,
     methods: list[str],
+    cfg: DatasetConfig,
+    k_fixed: int | None,
+    parameter_source: dict[str, Any],
 ) -> BenchmarkResult:
-    """Run the full benchmark for one dataset x seed set and persist all artifacts."""
-    cfg = DATASET_CONFIGS[dataset_name]
+    """Run the full benchmark for one dataset x seed set and persist all artifacts.
+
+    ``cfg`` and ``parameter_source`` come from :func:`get_resolved_config`.
+    """
     logger.info(
-        "=== %s / Set %s (%d seeds, methods=%s) ===",
+        "=== %s / Set %s (%d seeds, methods=%s)%s ===",
         cfg.display_name, seed_set_name, len(seeds), methods,
+        " CODE CHECK" if parameter_source.get("code_check") else "",
     )
 
     snap: DatasetSnapshot = cfg.loader()
@@ -614,6 +718,7 @@ def run_one_dataset_seed_set(
         methods=methods,
         ground_truth_labels=labels,
         texts=texts,
+        k_fixed=k_fixed,
     )
 
     # Emit per method
@@ -622,7 +727,7 @@ def run_one_dataset_seed_set(
         method_dir = dataset_root / m.method / f"set_{seed_set_name}"
         _persist_method_artifacts(
             m, artifacts, method_dir, seeds, dataset_name, seed_set_name,
-            cfg, started_at,
+            cfg, started_at, parameter_source,
         )
 
     # Combined summary CSV for this seed set
@@ -904,6 +1009,7 @@ def main(argv: list[str] | None = None) -> int:
         "--skip-reliability", action="store_true",
         help="Skip between-set reliability and pairwise tests after the sweep.",
     )
+    add_parameter_arguments(parser)
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -930,8 +1036,13 @@ def main(argv: list[str] | None = None) -> int:
     output_dir = Path(args.output_dir)
     requested_sets = [s.strip() for s in args.seed_sets.split(",") if s.strip()]
 
+    resolved = get_parameter_settings(args, method="reap")
+
     for dataset_name in args.dataset:
         dataset_root = output_dir / dataset_name
+        cfg, k_fixed, parameter_source = resolved[dataset_name]
+        if parameter_source["code_check"]:
+            write_code_check_marker(dataset_root)
         # Choose seed source: real manifest unless synthetic (for which we use the fallback)
         seed_source = synthetic_seeds if dataset_name == "synthetic" else manifest_sets
         for set_name in requested_sets:
@@ -946,6 +1057,7 @@ def main(argv: list[str] | None = None) -> int:
                 logger.info("--quick: using first %d seeds of Set %s", len(seeds), set_name)
             run_one_dataset_seed_set(
                 dataset_name, set_name, seeds, output_dir, methods,
+                cfg, k_fixed, parameter_source,
             )
 
         if not args.skip_reliability:
