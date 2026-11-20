@@ -49,6 +49,12 @@ from reap.datasets.ai_art_oos import (
     load_ai_art_oos_artist,
     load_ai_art_oos_public,
 )
+from reap.datasets.calls_presidential import (
+    DATASET_NAMES as CALLS_PRESIDENTIAL_NAMES,
+)
+from reap.datasets.calls_presidential import (
+    load_calls_presidential,
+)
 from reap.datasets.korean_forest import (
     build_korean_forest_snapshot,
     load_korean_forest,
@@ -110,6 +116,9 @@ __all__ = [
     "load_twenty_newsgroups_oos",
     "REFERENCE_20NG_CLASSES",
     "OOS_20NG_CLASSES",
+    # Earnings calls and presidential speech (tertiary case study)
+    "load_calls_presidential",
+    "CALLS_PRESIDENTIAL_NAMES",
     # Stubs (kept in the surface so imports don't break once they land)
     "load_corp_sustainability",
     "load_us_presidential",
