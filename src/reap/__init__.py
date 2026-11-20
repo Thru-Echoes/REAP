@@ -132,6 +132,17 @@ from reap.metrics_catalog import (
     read_metrics_catalog,
     write_metrics_catalog,
 )
+from reap.placement import (
+    REAP_HEAD_SETTING_KEYS,
+    HeadFit,
+    fit_knn_head,
+    fit_reap_head,
+    fit_ridge_head,
+    fit_scaled_mlp_head,
+    get_conformal_cutoff,
+    get_heldout_predictions,
+    get_nearest_reference_distances,
+)
 from reap.projection import (
     LinearProjectionHead,
     ProjectionHead,
@@ -193,6 +204,16 @@ __all__ = [
     # Clustering
     "find_best_k",
     "run_kmeans",
+    # Placing new passages: head variants and the calibrated inside test
+    "REAP_HEAD_SETTING_KEYS",
+    "HeadFit",
+    "fit_knn_head",
+    "fit_reap_head",
+    "fit_ridge_head",
+    "fit_scaled_mlp_head",
+    "get_conformal_cutoff",
+    "get_heldout_predictions",
+    "get_nearest_reference_distances",
     "get_cluster_sizes",
     # Evaluation — structure preservation
     "compute_trustworthiness",
