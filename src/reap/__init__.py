@@ -155,6 +155,17 @@ from reap.repro_bundle import (
     validate_protocol_version,
     write_repro_bundle,
 )
+from reap.selection import (
+    KScore,
+    KSelection,
+    RankedSetting,
+    SettingEvaluation,
+    compute_stability_at_k,
+    evaluate_setting,
+    find_k_by_separation_and_stability,
+    rank_settings,
+    select_setting_with_second_draw,
+)
 from reap.statistics import (
     BootstrapCIResult,
     FamilyComparisonResult,
@@ -193,6 +204,16 @@ __all__ = [
     # Clustering
     "find_best_k",
     "run_kmeans",
+    # K and setting selection with declared choices
+    "KScore",
+    "KSelection",
+    "RankedSetting",
+    "SettingEvaluation",
+    "compute_stability_at_k",
+    "evaluate_setting",
+    "find_k_by_separation_and_stability",
+    "rank_settings",
+    "select_setting_with_second_draw",
     "get_cluster_sizes",
     # Evaluation — structure preservation
     "compute_trustworthiness",

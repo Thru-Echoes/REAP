@@ -11,6 +11,17 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Added
 
+- `reap.selection`: choosing K and UMAP settings with every choice declared and no
+  defaults, following the rules of REAP's AI-art and Korean-forest studies.
+  `find_k_by_separation_and_stability` clusters the consensus map and every
+  per-seed map at the same K, drops a K whose smallest cluster is under a floor,
+  and picks K by weighted, min-max scaled silhouette and seed-to-consensus ARI;
+  the silhouette metric is declared (`"euclidean"`, `"cosine"`, any
+  scikit-learn metric, or a callable). `evaluate_setting` scores a setting with
+  trustworthiness at a fixed neighbourhood and stability at a common K.
+  `rank_settings` ranks on scaled metrics with an optional trustworthiness floor,
+  and `select_setting_with_second_draw` re-scores the top settings on a second
+  seed draw. The older `reap.search` functions are unchanged.
 - Fail-closed hold-out aggregator (`scripts/aggregate_holdout_results.py`).
   It combines every in-scope cell under the protocol v1.6 aggregation
   rules: two-sided paired Wilcoxon tests by seed (replicates averaged per
