@@ -208,6 +208,18 @@ Tracks work landing toward the first stable release (`1.0.0`).
   `release` workflow — which now builds and verifies the artifact but cannot
   publish. Re-enabling publication is a deliberate, reviewed change.
 
+### Fixed
+
+- `train_projection_head` no longer stops with "Expected more than 1 value
+  per channel when training" when the number of training rows is one more
+  than a multiple of `batch_size` (for example 4,801 rows with the default
+  batch of 64). The MLP head's batch normalisation cannot train on a batch of
+  one row, and both training loops (the inner folds and the final fit) used
+  to keep such a batch at the end of each epoch. A lone last row now joins
+  the batch before it, so no row is left out. Other row counts are batched
+  exactly as before. The linear head used to train on these sizes and now
+  gets the joined last batch too, so its results change for those sizes only.
+
 ### Notes
 
 - The version stays at `0.1.0` for this pre-release window; the next

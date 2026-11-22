@@ -253,6 +253,35 @@ def compute_projection_loss(
     }
 
 
+def _get_batch_bounds(n_rows: int, batch_size: int) -> list[tuple[int, int]]:
+    """Split ``n_rows`` rows into contiguous ``(start, stop)`` training batches.
+
+    Batches hold ``batch_size`` rows, and a short last batch is kept, except
+    that a last batch of exactly one row is joined to the batch before it
+    (giving one batch of ``batch_size + 1`` rows). ``ProjectionHead`` uses
+    batch normalisation, which cannot train on a single row, and a one-row
+    batch also leaves the distance-correlation loss term with no pairs to
+    compare. Row counts that do not leave a remainder of one are split exactly
+    as plain ``range(0, n_rows, batch_size)`` slicing would split them.
+
+    Parameters
+    ----------
+    n_rows : Number of rows to split (>= 0).
+    batch_size : Rows per batch (>= 1). With ``batch_size == 1`` nothing is
+        joined: every batch is one row by request.
+
+    Returns
+    -------
+    List of ``(start, stop)`` index pairs that cover ``0..n_rows`` once, in order.
+    """
+    bounds = [
+        (start, min(start + batch_size, n_rows)) for start in range(0, n_rows, batch_size)
+    ]
+    if batch_size > 1 and len(bounds) > 1 and bounds[-1][1] - bounds[-1][0] == 1:
+        bounds[-2:] = [(bounds[-2][0], n_rows)]
+    return bounds
+
+
 def train_projection_head(
     X: np.ndarray,
     Y: np.ndarray,
@@ -281,7 +310,8 @@ def train_projection_head(
     dropout : Dropout probability.
     alpha : MSE weight in combined loss.
     n_folds : Number of CV folds.
-    batch_size : Training batch size.
+    batch_size : Training batch size. If the row count leaves a last batch of
+        one row, that row joins the batch before it (see ``_get_batch_bounds``).
     max_epochs : Maximum training epochs per fold.
     patience : Early stopping patience.
     lr : Learning rate.
@@ -356,8 +386,8 @@ def train_projection_head(
             head.train_mode()
             perm = torch.randperm(len(X_train))
 
-            for start in range(0, len(X_train), batch_size):
-                idx = perm[start : start + batch_size]
+            for start, stop in _get_batch_bounds(len(X_train), batch_size):
+                idx = perm[start:stop]
                 loss, _ = compute_projection_loss(
                     head._model(X_train[idx]), Y_train[idx], alpha
                 )
@@ -439,8 +469,8 @@ def train_projection_head(
         perm = torch.randperm(len(X_all))
         epoch_loss = 0.0
         n_batches = 0
-        for start in range(0, len(X_all), batch_size):
-            idx = perm[start : start + batch_size]
+        for start, stop in _get_batch_bounds(len(X_all), batch_size):
+            idx = perm[start:stop]
             loss, _ = compute_projection_loss(final_head._model(X_all[idx]), Y_all[idx], alpha)
             final_optimizer.zero_grad()
             loss.backward()  # type: ignore[union-attr]
