@@ -22,6 +22,18 @@ Tracks work landing toward the first stable release (`1.0.0`).
   `rank_settings` ranks on scaled metrics with an optional trustworthiness floor,
   and `select_setting_with_second_draw` re-scores the top settings on a second
   seed draw. The older `reap.search` functions are unchanged.
+- `reap.placement`: four projection heads with every setting declared (REAP's
+  PyTorch MLP, a scikit-learn MLP on standardised inputs and targets as in the
+  AI-art study, a ridge map, and a k-nearest-neighbour head that averages the
+  coordinates of a passage's nearest reference passages), a k-fold held-out
+  placement of the reference (`get_heldout_predictions`), and an inside test
+  calibrated on those held-out placements (`get_nearest_reference_distances`,
+  `get_conformal_cutoff`).
+- `scripts/run_head_heldout.py`: held-out check of each head on a saved
+  `run_reference_probes.py` map: miss from the true position, distance to the
+  nearest other reference position, embedding distance to the nearest training
+  passage, cluster kept, by source and by cluster, and probe placement under the
+  calibrated inside test.
 - Fail-closed hold-out aggregator (`scripts/aggregate_holdout_results.py`).
   It combines every in-scope cell under the protocol v1.6 aggregation
   rules: two-sided paired Wilcoxon tests by seed (replicates averaged per
