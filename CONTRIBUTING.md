@@ -1,7 +1,7 @@
 # Contributing to REAP
 
-Thanks for your interest in REAP. The package ships as
-`pip install reap-topics` and accompanies an in-progress methods paper,
+Thanks for your interest in REAP. The package (`reap-topics`) is installed from
+this repository for now and accompanies an in-progress methods paper,
 so contributions are held to publication-grade standards for
 reproducibility and provenance. Please skim
 [`.claude/rules/`](.claude/rules/) before opening a substantive PR —
@@ -11,8 +11,8 @@ testing, manuscript work, and the public-package contract.
 ## Development Setup
 
 ```bash
-git clone https://github.com/Thru-Echoes/reap-topics
-cd reap-topics
+git clone https://github.com/Thru-Echoes/REAP
+cd REAP
 python -m venv .venv && source .venv/bin/activate   # or use conda env `reap`
 pip install -e ".[dev]"
 ```
