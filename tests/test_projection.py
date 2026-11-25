@@ -341,6 +341,121 @@ class TestHeadFactoryAndSeed:
         np.testing.assert_array_equal(r1["model"].forward(X), r2["model"].forward(X))
 
 
+class TestBatchOfOneRow:
+    """Training must not stop when the row count leaves a last batch of one row.
+
+    ``ProjectionHead`` normalises each hidden layer with ``BatchNorm1d``, which in
+    training mode refuses a batch of one row ("Expected more than 1 value per
+    channel when training"). A training set whose size is one more than a
+    multiple of ``batch_size`` used to produce exactly such a batch, in the final
+    fit on all rows and in the training part of each inner fold.
+    """
+
+    @staticmethod
+    def _make_data(
+        n_samples: int, n_classes: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Random 16-d inputs, 4-d targets, and balanced labels, seeded."""
+        rng = np.random.default_rng(7)
+        X = rng.standard_normal((n_samples, 16)).astype(np.float32)
+        Y = rng.standard_normal((n_samples, 4)).astype(np.float32)
+        labels = np.array([i % n_classes for i in range(n_samples)])
+        return X, Y, labels
+
+    @staticmethod
+    def _inner_train_sizes(labels: np.ndarray, n_folds: int, seed: int) -> list[int]:
+        """Training-part sizes of the inner folds, split as train_projection_head does."""
+        from sklearn.model_selection import StratifiedKFold
+
+        skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
+        dummy_X = np.zeros((len(labels), 1))
+        return [len(train_idx) for train_idx, _ in skf.split(dummy_X, labels)]
+
+    def test_final_fit_with_remainder_of_one(self) -> None:
+        """129 rows with batch_size=64: the final fit's last batch would be one row."""
+        X, Y, labels = self._make_data(n_samples=129, n_classes=3)
+        n_folds, seed, batch_size = 3, 0, 64
+        # Precondition: the inner folds do not hit the case, so this test
+        # isolates the final fit on all rows.
+        assert all(
+            size % batch_size != 1 for size in self._inner_train_sizes(labels, n_folds, seed)
+        )
+        assert len(X) % batch_size == 1
+
+        result = train_projection_head(
+            X, Y, labels, n_folds=n_folds, batch_size=batch_size,
+            max_epochs=3, patience=2, seed=seed,
+        )
+        assert isinstance(result["model"], ProjectionHead)
+        assert np.all(np.isfinite(result["model"].forward(X)))
+
+    def test_inner_fold_with_remainder_of_one(self) -> None:
+        """130 rows, two folds: each inner training part has 65 rows (64 + 1)."""
+        X, Y, labels = self._make_data(n_samples=130, n_classes=2)
+        n_folds, seed, batch_size = 2, 0, 64
+        assert self._inner_train_sizes(labels, n_folds, seed) == [65, 65]
+        assert len(X) % batch_size != 1
+
+        result = train_projection_head(
+            X, Y, labels, n_folds=n_folds, batch_size=batch_size,
+            max_epochs=3, patience=2, seed=seed,
+        )
+        assert len(result["cv_metrics"]) == n_folds
+        assert np.all(np.isfinite(result["model"].forward(X)))
+
+    def test_single_batch_of_batch_size_plus_one(self) -> None:
+        """65 rows, batch_size=64, in the final fit: one batch of 65 rows."""
+        X, Y, labels = self._make_data(n_samples=65, n_classes=2)
+        result = train_projection_head(
+            X, Y, labels, n_folds=2, batch_size=64, max_epochs=2, patience=2, seed=0,
+        )
+        assert np.all(np.isfinite(result["model"].forward(X)))
+
+
+class TestGetBatchBounds:
+    """Unit tests for the batch splitter used by both training loops."""
+
+    def test_even_split_is_unchanged(self) -> None:
+        from reap.projection import _get_batch_bounds
+
+        assert _get_batch_bounds(128, 64) == [(0, 64), (64, 128)]
+
+    def test_ordinary_remainder_is_unchanged(self) -> None:
+        from reap.projection import _get_batch_bounds
+
+        assert _get_batch_bounds(130, 64) == [(0, 64), (64, 128), (128, 130)]
+
+    def test_remainder_of_one_joins_previous_batch(self) -> None:
+        from reap.projection import _get_batch_bounds
+
+        assert _get_batch_bounds(129, 64) == [(0, 64), (64, 129)]
+        assert _get_batch_bounds(4801, 64)[-1] == (4736, 4801)
+
+    def test_fewer_rows_than_batch_size(self) -> None:
+        from reap.projection import _get_batch_bounds
+
+        assert _get_batch_bounds(10, 64) == [(0, 10)]
+        assert _get_batch_bounds(1, 64) == [(0, 1)]
+
+    def test_batch_size_one_is_not_merged(self) -> None:
+        from reap.projection import _get_batch_bounds
+
+        assert _get_batch_bounds(3, 1) == [(0, 1), (1, 2), (2, 3)]
+
+    @pytest.mark.parametrize("n_rows", list(range(0, 200)))
+    @pytest.mark.parametrize("batch_size", [1, 2, 3, 64])
+    def test_every_row_once_and_no_batch_of_one(self, n_rows: int, batch_size: int) -> None:
+        """Bounds tile 0..n_rows contiguously; a batch of one only when unavoidable."""
+        from reap.projection import _get_batch_bounds
+
+        bounds = _get_batch_bounds(n_rows, batch_size)
+        covered = [i for start, stop in bounds for i in range(start, stop)]
+        assert covered == list(range(n_rows))
+        if batch_size > 1 and n_rows > 1:
+            assert all(stop - start >= 2 for start, stop in bounds)
+        assert all(stop - start <= batch_size + 1 for start, stop in bounds)
+
+
 class TestProjectionExports:
     """The projection head is REAP's headline out-of-sample feature, so its public
     names must be reachable from the top-level ``reap`` package, not just from the
