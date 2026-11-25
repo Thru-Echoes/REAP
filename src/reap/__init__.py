@@ -22,7 +22,7 @@ Benchmark + metrics entry points::
     from reap import compare_family, compute_seed_bootstrap_ci
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from reap.analysis import (
     assign_by_nearest_centroid,

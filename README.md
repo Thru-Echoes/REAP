@@ -16,26 +16,33 @@ artifact rather than living in this README.
 
 ## Installation
 
-```bash
-pip install reap-topics
-```
-
-Optional extras:
+REAP is not on PyPI yet, so install a tagged release from GitHub:
 
 ```bash
-pip install "reap-topics[projection]"     # Neural projection head (PyTorch)
-pip install "reap-topics[labeling]"       # LLM cluster labeling (OpenAI, Anthropic)
-pip install "reap-topics[baselines]"      # BERTopic + HDBSCAN baselines
-pip install "reap-topics[coherence]"      # Topic coherence (gensim)
-pip install "reap-topics[text-fixtures]"  # sentence-transformers for examples
-pip install "reap-topics[all]"            # everything above
+pip install "reap-topics @ git+https://github.com/Thru-Echoes/REAP@v0.2.0"
 ```
+
+Optional extras go in brackets after the package name:
+
+```bash
+pip install "reap-topics[projection] @ git+https://github.com/Thru-Echoes/REAP@v0.2.0"
+```
+
+| Extra | Adds |
+| --- | --- |
+| `projection` | Neural projection head (PyTorch) |
+| `labeling` | LLM cluster labeling (OpenAI, Anthropic) |
+| `baselines` | BERTopic + HDBSCAN baselines |
+| `parametric-umap` | Parametric UMAP baseline (TensorFlow) |
+| `coherence` | Topic coherence (gensim) |
+| `text-fixtures` | sentence-transformers for examples |
+| `all` | everything above |
 
 Developer setup:
 
 ```bash
-git clone https://github.com/Thru-Echoes/reap-topics
-cd reap-topics
+git clone https://github.com/Thru-Echoes/REAP
+cd REAP
 pip install -e ".[dev]"
 pytest tests/ -v --tb=short
 ```

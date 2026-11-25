@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Tracks work landing toward the first stable release (`1.0.0`).
+## [0.2.0] — 2026-11-25
+
+Second pre-release. PyPI publishing is still disabled; install from the
+GitHub tag (see the README).
 
 ### Added
 
@@ -34,6 +37,24 @@ Tracks work landing toward the first stable release (`1.0.0`).
   nearest other reference position, embedding distance to the nearest training
   passage, cluster kept, by source and by cluster, and probe placement under the
   calibrated inside test.
+- Parameter-search records (`scripts/search_record.py`): a strict record of the
+  settings a map may use, tied to the SHA-256 of the exact input the search ran
+  on. `run_paper_benchmark.py`, `run_bertopic_only.py`,
+  `run_parametric_umap_only.py` and `run_reference_probes.py` refuse to run
+  without a matching record unless `--code-check` is given, which stamps every
+  output as a code check rather than a result.
+- `scripts/run_reference_probes.py`: builds a REAP map on a reference set only,
+  trains the projection head on it, and projects other document sets (probes)
+  into it without letting them touch the map, K or the head. It repeats the
+  final step under seeds drawn once by `scripts/generate_final_step_seeds.py`,
+  and reports each probe's distance to the nearest reference passage, the
+  conformal filter's decision, and a calibrated inside test.
+- `reap.datasets.load_calls_presidential(encoder, version)`: passage snapshots
+  of earnings calls and presidential speech about climate and energy, encoded
+  with e5-large-v2 and with text-embedding-3-large on identical rows, plus
+  benchmark entries for both encodings.
+- Protocol v1.7 amendment (`docs/proposals/2026-11-protocol-v1.7-amendment.md`,
+  ratified by merging its pull request) registering the earnings-call and presidential corpus before any REAP run on it.
 - Fail-closed hold-out aggregator (`scripts/aggregate_holdout_results.py`).
   It combines every in-scope cell under the protocol v1.6 aggregation
   rules: two-sided paired Wilcoxon tests by seed (replicates averaged per
@@ -124,18 +145,6 @@ Tracks work landing toward the first stable release (`1.0.0`).
   comparison; leakage and repeated-measures rules; record-file schema
   additions with a mechanical protocol-version gate; deferred analyses and
   residual risks recorded. Ratification happens at the amendment PR's merge.
-- Distance-correlation recipe pinning: the reported metric
-  (`compute_distance_correlation`, Pearson r between condensed unique-pair
-  distance vectors) and the training-loss term
-  (`compute_projection_loss`, Pearson r over full flattened self-distance
-  matrices, diagonal included) are two different calculations that shared
-  one everyday name — and neither is Székely's distance correlation. They
-  are now registered as distinct recipes (`distance_correlation`,
-  `dist_corr_loss`) with from-scratch reference implementations, closed-form
-  and synthetic verification rungs pinning each recipe and their exact gap,
-  a byte-identical loss regression test (the loss numerics are
-  calibration-frozen), and docstrings that name each recipe and
-  cross-reference the other.
 - CI/packaging hardening batch: `src/reap/py.typed` now ships in the wheel
   so downstream type checkers consume the package's annotations; all five
   PR workflows run with least-privilege `permissions: contents: read` and
@@ -147,38 +156,6 @@ Tracks work landing toward the first stable release (`1.0.0`).
   covers Python 3.10–3.13 (cp313 wheels for numba/torch verified on PyPI
   before adding the cell); the typecheck job installs the tensorflow-free
   `[ci]` extra, keeping torch and tensorflow apart in every job.
-- Metrics catalog (`src/reap/metrics_catalog.py`): frozen Pydantic models
-  binding every recorded metric value to a named recipe (the exact
-  calculation — variant, label pairing, cluster-count rule, parameters), its
-  provenance (source artifact, code commit, how strongly it is backed), and
-  its evaluation mode; paired method-vs-method comparisons carry their test,
-  corrected p-values, and effect sizes. Catalogs validate fail-closed
-  (duplicate or dangling recipe ids refuse to load) and write atomically.
-  Exported from the top-level `reap` package.
-- BERTopic baseline pipeline wrapper for like-for-like comparison against
-  the REAP consensus pipeline on identical splits, seeds, and embeddings.
-- Topic-coherence metrics (UMass, CV) computed from c-TF-IDF cluster terms
-  for downstream topic-modeling evaluation.
-- Conformal out-of-sample (OOS) filter for projection-head outputs,
-  flagging points whose embedding falls outside the training-time
-  conformal threshold.
-- Neural projection head (`src/reap/projection.py`) for mapping new
-  embeddings into the consensus space without re-running multi-seed UMAP,
-  with an MLP head and a `LinearProjectionHead` (the pre-registered linear
-  baseline). Both heads, plus `train_projection_head` and
-  `compute_projection_loss`, are exported from the top-level `reap` package.
-- First-class dataset loaders under `src/reap/datasets/`:
-  `load_ai_art()`, `load_korean_forest()`, `load_korean_forest_oos()`,
-  with `DatasetSnapshot` / `DatasetMetadata` Pydantic v2 carriers.
-- Manuscript-companion CI: `golden-validation` workflow guarding Tier-1
-  (mathematical invariants), Tier-2 (statistical properties), and
-  Tier-3 (tolerance snapshots) checks tied to the pre-registered
-  evaluation protocol.
-- GitHub Actions workflows for `test`, `typecheck`, `lint`, `build`, and a
-  `release` workflow (build + verify only — PyPI publishing is intentionally
-  disabled until REAP is publishable; see *Changed* below).
-- Contribution-readiness files: `LICENSE` (MIT; see *Changed*), `CHANGELOG.md`,
-  `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
 - `CITATION.cff` with the canonical citation metadata for all releases
   (author with ORCID and affiliation, MIT license, the Zenodo concept DOI,
   and the canonical title "REAP: Reproducible Embeddings via Averaged
@@ -206,30 +183,6 @@ Tracks work landing toward the first stable release (`1.0.0`).
   checkout is present, where a missing artifact is a failure, and skip with a
   visible reason only on code-only checkouts such as CI. A new guard test fails
   on any home-directory path in `src/`, `scripts/`, `tests/`, or `examples/`.
-- Relicensed from Apache-2.0 to MIT. Pre-release, single-author history, so
-  the switch is clean; it settles the licensing note that listed MIT as a
-  candidate pending confirmation. `LICENSE`, the `pyproject.toml` license
-  field, and the trove classifier changed together.
-- Removed the unverified "+32% ARI (0.75 vs. 0.56)" headline from the README
-  and the `consensus.py` docstrings. The figure came from a sibling analysis
-  under a definitionally different ARI calculation, and the README had
-  additionally attributed it to the wrong corpus; quantitative claims now
-  defer to committed benchmark artifacts. The tracked correction ledger
-  (`docs/PENDING_PROSE_CORRECTIONS.md`) records the frozen-manuscript
-  occurrences to fix at unfreeze.
-- `train_projection_head` is reproducible by default: it takes an explicit
-  `seed` (default 42) that controls weight initialization, per-fold shuffling,
-  and the stratified fold splits. Pass `seed=None` to defer to a caller-set
-  global torch seed instead — used by the calibrated golden fixtures and the
-  out-of-sample scripts, which seed torch themselves.
-- README reorganized: pitch -> install -> minimal working example ->
-  links, with the longer API reference kept near the bottom.
-- Disabled PyPI publication until REAP is a publishable package. Added the
-  `Private :: Do Not Upload` classifier so the PyPI server rejects any upload
-  from any source (CI or local `twine upload`), and removed the publish step,
-  the OIDC `id-token: write` permission, and the `pypi` environment from the
-  `release` workflow — which now builds and verifies the artifact but cannot
-  publish. Re-enabling publication is a deliberate, reviewed change.
 
 ### Fixed
 
@@ -245,14 +198,14 @@ Tracks work landing toward the first stable release (`1.0.0`).
 
 ### Notes
 
-- The version stays at `0.1.0` for this pre-release window; the next
-  bump is gated on the manuscript's evaluation-protocol re-run and
-  the Phase 6 release checklist.
+- README and CONTRIBUTING now give the GitHub install and clone commands;
+  the old ones named a PyPI release and a repository that do not exist.
 
 ## [0.1.0] — initial pre-release
 
-Initial REAP package skeleton, intentionally narrow in scope. Captures
-the state at first import-able snapshot.
+First tagged pre-release, archived on Zenodo. Items from "Distance-correlation
+recipe pinning" on were listed under Unreleased when the tag was cut and moved
+here when 0.2.0 was released.
 
 ### Added
 
@@ -269,6 +222,91 @@ the state at first import-able snapshot.
 - `pyproject.toml` declaring runtime deps (numpy, scipy, scikit-learn,
   umap-learn, pydantic) and optional extras for `projection`,
   `labeling`, `baselines`, `text-fixtures`, `coherence`, and `dev`.
+- Distance-correlation recipe pinning: the reported metric
+  (`compute_distance_correlation`, Pearson r between condensed unique-pair
+  distance vectors) and the training-loss term
+  (`compute_projection_loss`, Pearson r over full flattened self-distance
+  matrices, diagonal included) are two different calculations that shared
+  one everyday name — and neither is Székely's distance correlation. They
+  are now registered as distinct recipes (`distance_correlation`,
+  `dist_corr_loss`) with from-scratch reference implementations, closed-form
+  and synthetic verification rungs pinning each recipe and their exact gap,
+  a byte-identical loss regression test (the loss numerics are
+  calibration-frozen), and docstrings that name each recipe and
+  cross-reference the other.
 
-[Unreleased]: https://github.com/Thru-Echoes/REAP/compare/v0.1.0...HEAD
+- Metrics catalog (`src/reap/metrics_catalog.py`): frozen Pydantic models
+  binding every recorded metric value to a named recipe (the exact
+  calculation — variant, label pairing, cluster-count rule, parameters), its
+  provenance (source artifact, code commit, how strongly it is backed), and
+  its evaluation mode; paired method-vs-method comparisons carry their test,
+  corrected p-values, and effect sizes. Catalogs validate fail-closed
+  (duplicate or dangling recipe ids refuse to load) and write atomically.
+  Exported from the top-level `reap` package.
+
+- BERTopic baseline pipeline wrapper for like-for-like comparison against
+  the REAP consensus pipeline on identical splits, seeds, and embeddings.
+
+- Topic-coherence metrics (UMass, CV) computed from c-TF-IDF cluster terms
+  for downstream topic-modeling evaluation.
+
+- Conformal out-of-sample (OOS) filter for projection-head outputs,
+  flagging points whose embedding falls outside the training-time
+  conformal threshold.
+
+- Neural projection head (`src/reap/projection.py`) for mapping new
+  embeddings into the consensus space without re-running multi-seed UMAP,
+  with an MLP head and a `LinearProjectionHead` (the pre-registered linear
+  baseline). Both heads, plus `train_projection_head` and
+  `compute_projection_loss`, are exported from the top-level `reap` package.
+
+- First-class dataset loaders under `src/reap/datasets/`:
+  `load_ai_art()`, `load_korean_forest()`, `load_korean_forest_oos()`,
+  with `DatasetSnapshot` / `DatasetMetadata` Pydantic v2 carriers.
+
+- Manuscript-companion CI: `golden-validation` workflow guarding Tier-1
+  (mathematical invariants), Tier-2 (statistical properties), and
+  Tier-3 (tolerance snapshots) checks tied to the pre-registered
+  evaluation protocol.
+
+- GitHub Actions workflows for `test`, `typecheck`, `lint`, `build`, and a
+  `release` workflow (build + verify only — PyPI publishing is intentionally
+  disabled until REAP is publishable; see *Changed* below).
+
+- Contribution-readiness files: `LICENSE` (MIT; see *Changed*), `CHANGELOG.md`,
+  `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
+
+### Changed
+
+- Relicensed from Apache-2.0 to MIT. Pre-release, single-author history, so
+  the switch is clean; it settles the licensing note that listed MIT as a
+  candidate pending confirmation. `LICENSE`, the `pyproject.toml` license
+  field, and the trove classifier changed together.
+
+- Removed the unverified "+32% ARI (0.75 vs. 0.56)" headline from the README
+  and the `consensus.py` docstrings. The figure came from a sibling analysis
+  under a definitionally different ARI calculation, and the README had
+  additionally attributed it to the wrong corpus; quantitative claims now
+  defer to committed benchmark artifacts. The tracked correction ledger
+  (`docs/PENDING_PROSE_CORRECTIONS.md`) records the frozen-manuscript
+  occurrences to fix at unfreeze.
+
+- `train_projection_head` is reproducible by default: it takes an explicit
+  `seed` (default 42) that controls weight initialization, per-fold shuffling,
+  and the stratified fold splits. Pass `seed=None` to defer to a caller-set
+  global torch seed instead — used by the calibrated golden fixtures and the
+  out-of-sample scripts, which seed torch themselves.
+
+- README reorganized: pitch -> install -> minimal working example ->
+  links, with the longer API reference kept near the bottom.
+
+- Disabled PyPI publication until REAP is a publishable package. Added the
+  `Private :: Do Not Upload` classifier so the PyPI server rejects any upload
+  from any source (CI or local `twine upload`), and removed the publish step,
+  the OIDC `id-token: write` permission, and the `pypi` environment from the
+  `release` workflow — which now builds and verifies the artifact but cannot
+  publish. Re-enabling publication is a deliberate, reviewed change.
+
+[Unreleased]: https://github.com/Thru-Echoes/REAP/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Thru-Echoes/REAP/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Thru-Echoes/REAP/releases/tag/v0.1.0
