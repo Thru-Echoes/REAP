@@ -42,9 +42,12 @@ from run_paper_benchmark import (  # noqa: E402
     DATASET_CONFIGS,
     SEED_MANIFEST_PATH,
     _load_seed_sets,
+    add_parameter_arguments,
     compute_between_set_reliability,
     compute_pairwise_tests,
+    get_parameter_settings,
 )
+from search_record import write_code_check_marker  # noqa: E402
 
 # Add src/ for the package imports.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -83,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         "--skip-reliability", action="store_true",
         help="Skip recomputing between-set reliability + pairwise tests after the sweep.",
     )
+    add_parameter_arguments(parser)
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -105,14 +109,18 @@ def main(argv: list[str] | None = None) -> int:
 
     output_dir = Path(args.output_dir)
     requested_sets = [s.strip() for s in args.seed_sets.split(",") if s.strip()]
+    if "synthetic" in args.dataset:
+        logger.error(
+            "synthetic dataset is not supported here — "
+            "use run_paper_benchmark.py for that"
+        )
+        return 2
+    resolved = get_parameter_settings(args, method=ONLY_METHOD)
 
     for dataset_name in args.dataset:
-        if dataset_name == "synthetic":
-            logger.error(
-                "synthetic dataset is not supported here — "
-                "use run_paper_benchmark.py for that"
-            )
-            return 2
+        cfg, k_fixed, parameter_source = resolved[dataset_name]
+        if parameter_source["code_check"]:
+            write_code_check_marker(output_dir / dataset_name)
         for set_name in requested_sets:
             if set_name not in manifest_sets:
                 logger.error(
@@ -128,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             run_one_dataset_seed_set_method_only(
                 dataset_name, set_name, seeds, output_dir, ONLY_METHOD,
+                cfg, k_fixed, parameter_source,
             )
 
         if not args.skip_reliability:
