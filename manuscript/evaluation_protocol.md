@@ -1,8 +1,8 @@
 # REAP — Pre-Registered Evaluation Protocol
 
 **Status:** Pre-registered protocol for the REAP methods paper.
-**Version:** 1.6
-**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2) · Updated 2026-05-14 (v1.3) · Updated 2026-05-21 (v1.4) · Updated 2026-07-04 (v1.5) · Updated 2026-11-16 (v1.6; see Changelog §15).
+**Version:** 1.8
+**Frozen on:** 2026-04-13 (v1.0) · Updated 2026-04-13 (v1.1) · Updated 2026-05-09 (v1.2) · Updated 2026-05-14 (v1.3) · Updated 2026-05-21 (v1.4) · Updated 2026-07-04 (v1.5) · Updated 2026-11-16 (v1.6) · Updated 2026-11-20 (v1.7) · Updated 2026-11-26 (v1.8, registered after analysis; see Changelog §15).
 **Binding:** All experiments whose numbers appear in the manuscript
 must follow this protocol. Any deviation requires a TRACE correction
 event (`category="correction"`, with `corrects_event_ids` linking the
@@ -24,6 +24,11 @@ the analysis cannot drift to fit the result.
 | Secondary | Korean forest policy | 905 | sentence-transformers/MiniLM | 384 | Yes (Hye In's expert taxonomy) | per source |
 | Tertiary | Corporate sustainability | 1,012 | TBD (locked at processing time) | TBD | Pending | per source |
 | Tertiary | US presidential | ~1,000 | TBD (locked at processing time) | TBD | Pending | per source |
+
+The two tertiary rows above were placeholders. v1.7 registers the earnings-call and
+presidential corpus (`docs/proposals/2026-11-protocol-v1.7-amendment.md`); v1.8 registers
+the presidential environmental reference map, 2,174 units, `intfloat/e5-large-v2`, 1024-d,
+after analysis (§20).
 
 **Dataset API contract.** Each dataset is exposed by a function
 `reap.datasets.load_<name>() → DatasetSnapshot`. The snapshot includes
@@ -978,7 +983,56 @@ reported.
 
 ---
 
+## 20. Presidential Environmental Reference Map (v1.8, Registered After Analysis)
+
+The third case study: presidential environmental language (2,174 units of the
+core map `env_pres_unit_core_centred`, speech and written text, e5-large-v2
+vectors centred by source) is the reference map, and company environmental
+language (earnings calls and sustainability reports) is placed on it. Unlike
+the other sections, this one was written after the results were computed and
+read; it registers the runs and the rules every reported number follows, and
+lists the settings that were fixed after analysis.
+
+- **Settings:** UMAP 18 dimensions, 30 neighbours, minimum distance 0, from
+  the recorded search on exactly these vectors; every method reads them, and
+  the alternatives are not tuned separately.
+- **Seeds and K:** REAP seed sets A, B and C; K per set by the §9 code rule
+  (highest silhouette, K 5 to 30), with fixed K 12 as a second reading that
+  never replaces the first.
+- **Methods:** single seed, best of N, naive average, Procrustes, REAP,
+  BERTopic, parametric UMAP, and the default-head check.
+- **Headline:** REAP's mean between-set ARI over the three seed-set pairs,
+  with the pair values and each set's K. No significance test on the three
+  pair values.
+- **Placement:** by the neighbour vote with a per-source background
+  comparison; REAP's projection head reported beside it.
+- **Fixed after analysis:** the core map, centring, the 12-cluster cut, the
+  neighbour vote over the head, and the background-comparison thresholds.
+- **Code version:** the runs reproduce file for file under REAP v0.2.0.
+
+Authoritative source: `docs/proposals/2026-11-protocol-v1.8-amendment.md`.
+Run enumeration: `docs/run_matrix_v1_8.json`, checked by
+`tests/test_run_matrix_v1_8.py`.
+
+---
+
 ## 15. Changelog
+
+- **1.8 (2026-11-26)** — Registers the third case study, the presidential
+  environmental reference map with company language placed on it, **after
+  analysis** (§20). Records the reference, the placement rule, seed sets A,
+  B and C, the benchmark methods and measures, and the settings fixed while
+  results were read; the runs reproduce under REAP v0.2.0. Does not change
+  v1.7. Machine enumeration `docs/run_matrix_v1_8.json` with
+  `tests/test_run_matrix_v1_8.py`. Authoritative source:
+  `docs/proposals/2026-11-protocol-v1.8-amendment.md`. Ratification = merge
+  of the amendment PR.
+
+- **1.7 (2026-11-20)** — Registers the earnings-call and presidential corpus
+  about climate and energy before any REAP run on it. Authoritative source:
+  `docs/proposals/2026-11-protocol-v1.7-amendment.md`, ratified by the merge
+  of PR #27. v1.7 did not edit this file; its entry is added here
+  with v1.8.
 
 - **1.6 (2026-11-16)** — Hold-out scope and per-seed unit fixed before any
   §18 run. 11 of 23 evaluations in scope (AI-art T1–T5; Korean forest K1,
