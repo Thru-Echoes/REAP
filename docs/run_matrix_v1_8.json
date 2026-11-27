@@ -1,0 +1,232 @@
+{
+ "schema_version": "1.0",
+ "protocol_version": "1.8",
+ "amendment": "docs/proposals/2026-11-protocol-v1.8-amendment.md",
+ "registered_after_analysis": true,
+ "scope": "Third case study: the presidential environmental reference map env_pres_unit_core_centred (2,174 units), company environmental language placed on it. Result paths are relative to the research repository (REAP-research).",
+ "dataset": "presidential_env_core",
+ "seed_manifest": "manuscript/seeds/seed_manifest.json",
+ "seed_manifest_sha256": "88cefb0271b5a3c2ae6ac3df4fa3aa9bcf76d06b9a268ceea8526d869a462699",
+ "seed_sets": [
+  "A",
+  "B",
+  "C"
+ ],
+ "n_seeds_per_set": 30,
+ "umap_settings": {
+  "n_components": 18,
+  "n_neighbors": 30,
+  "min_dist": 0.0,
+  "input_metric": "cosine"
+ },
+ "k_rule": "highest consensus silhouette for K 5 to 30, k-means seed 42",
+ "k_second_reading": 12,
+ "benchmark_methods": [
+  "single_seed",
+  "best_of_n",
+  "naive_average",
+  "procrustes",
+  "reap",
+  "bertopic",
+  "parametric_umap"
+ ],
+ "headline_measure": "REAP mean between-set ARI over the three seed-set pairs, K by the rule",
+ "significance_tests": "none on the three pair values of a method",
+ "reap_version": "0.2.0",
+ "declared_cell_counts": {
+  "seed_agreement": 3,
+  "benchmark": 21,
+  "default_head_check": 3
+ },
+ "cells": [
+  {
+   "cell_id": "case3_seed_agreement_reap_A",
+   "stage": "seed_agreement",
+   "method": "reap",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/seed_agreement/presidential_env_core/reap/set_A"
+  },
+  {
+   "cell_id": "case3_seed_agreement_reap_B",
+   "stage": "seed_agreement",
+   "method": "reap",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/seed_agreement/presidential_env_core/reap/set_B"
+  },
+  {
+   "cell_id": "case3_seed_agreement_reap_C",
+   "stage": "seed_agreement",
+   "method": "reap",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/seed_agreement/presidential_env_core/reap/set_C"
+  },
+  {
+   "cell_id": "case3_benchmark_single_seed_A",
+   "stage": "benchmark",
+   "method": "single_seed",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/single_seed/set_A"
+  },
+  {
+   "cell_id": "case3_benchmark_single_seed_B",
+   "stage": "benchmark",
+   "method": "single_seed",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/single_seed/set_B"
+  },
+  {
+   "cell_id": "case3_benchmark_single_seed_C",
+   "stage": "benchmark",
+   "method": "single_seed",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/single_seed/set_C"
+  },
+  {
+   "cell_id": "case3_benchmark_best_of_n_A",
+   "stage": "benchmark",
+   "method": "best_of_n",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/best_of_n/set_A"
+  },
+  {
+   "cell_id": "case3_benchmark_best_of_n_B",
+   "stage": "benchmark",
+   "method": "best_of_n",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/best_of_n/set_B"
+  },
+  {
+   "cell_id": "case3_benchmark_best_of_n_C",
+   "stage": "benchmark",
+   "method": "best_of_n",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/best_of_n/set_C"
+  },
+  {
+   "cell_id": "case3_benchmark_naive_average_A",
+   "stage": "benchmark",
+   "method": "naive_average",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/naive_average/set_A"
+  },
+  {
+   "cell_id": "case3_benchmark_naive_average_B",
+   "stage": "benchmark",
+   "method": "naive_average",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/naive_average/set_B"
+  },
+  {
+   "cell_id": "case3_benchmark_naive_average_C",
+   "stage": "benchmark",
+   "method": "naive_average",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/naive_average/set_C"
+  },
+  {
+   "cell_id": "case3_benchmark_procrustes_A",
+   "stage": "benchmark",
+   "method": "procrustes",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/procrustes/set_A"
+  },
+  {
+   "cell_id": "case3_benchmark_procrustes_B",
+   "stage": "benchmark",
+   "method": "procrustes",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/procrustes/set_B"
+  },
+  {
+   "cell_id": "case3_benchmark_procrustes_C",
+   "stage": "benchmark",
+   "method": "procrustes",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/procrustes/set_C"
+  },
+  {
+   "cell_id": "case3_benchmark_reap_A",
+   "stage": "benchmark",
+   "method": "reap",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/reap/set_A"
+  },
+  {
+   "cell_id": "case3_benchmark_reap_B",
+   "stage": "benchmark",
+   "method": "reap",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/reap/set_B"
+  },
+  {
+   "cell_id": "case3_benchmark_reap_C",
+   "stage": "benchmark",
+   "method": "reap",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/reap/set_C"
+  },
+  {
+   "cell_id": "case3_benchmark_bertopic_A",
+   "stage": "benchmark",
+   "method": "bertopic",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/bertopic/set_A"
+  },
+  {
+   "cell_id": "case3_benchmark_bertopic_B",
+   "stage": "benchmark",
+   "method": "bertopic",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/bertopic/set_B"
+  },
+  {
+   "cell_id": "case3_benchmark_bertopic_C",
+   "stage": "benchmark",
+   "method": "bertopic",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/bertopic/set_C"
+  },
+  {
+   "cell_id": "case3_benchmark_parametric_umap_A",
+   "stage": "benchmark",
+   "method": "parametric_umap",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/parametric_umap/set_A"
+  },
+  {
+   "cell_id": "case3_benchmark_parametric_umap_B",
+   "stage": "benchmark",
+   "method": "parametric_umap",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/parametric_umap/set_B"
+  },
+  {
+   "cell_id": "case3_benchmark_parametric_umap_C",
+   "stage": "benchmark",
+   "method": "parametric_umap",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/presidential_env_core/parametric_umap/set_C"
+  },
+  {
+   "cell_id": "case3_default_head_A",
+   "stage": "default_head_check",
+   "method": "reap_default_head",
+   "seed_set": "A",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/projection_head/presidential_env_core/set_A"
+  },
+  {
+   "cell_id": "case3_default_head_B",
+   "stage": "default_head_check",
+   "method": "reap_default_head",
+   "seed_set": "B",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/projection_head/presidential_env_core/set_B"
+  },
+  {
+   "cell_id": "case3_default_head_C",
+   "stage": "default_head_check",
+   "method": "reap_default_head",
+   "seed_set": "C",
+   "result_path": "results/corporate_presidential/case3_rebuild/benchmark/full/projection_head/presidential_env_core/set_C"
+  }
+ ]
+}

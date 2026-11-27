@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Protocol v1.8 amendment (`docs/proposals/2026-11-protocol-v1.8-amendment.md`)
+  registering the presidential environmental reference map, with company
+  language placed on it, after analysis. Adds protocol §20, the run matrix
+  `docs/run_matrix_v1_8.json` and its test, and the missing v1.7 changelog
+  entry in the protocol.
+
 ## [0.2.0] — 2026-11-25
 
 Second pre-release. PyPI publishing is still disabled; install from the
